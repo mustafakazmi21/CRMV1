@@ -37,14 +37,21 @@ async function checkAndCreateDatabase() {
 }
 
 async function initializeSchemaAndData() {
-    console.log(`Connecting to database '${process.env.DB_NAME}' to run migrations...`);
-    const pool = new Pool({
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        host: process.env.DB_HOST,
-        port: process.env.DB_PORT,
-        database: process.env.DB_NAME
-    });
+    console.log(`Connecting to database to run migrations...`);
+    const poolConfig = process.env.DATABASE_URL
+        ? { 
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+          }
+        : {
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            host: process.env.DB_HOST,
+            port: process.env.DB_PORT,
+            database: process.env.DB_NAME
+        };
+        
+    const pool = new Pool(poolConfig);
 
     try {
         // Read and execute schema.sql
@@ -139,7 +146,11 @@ async function initializeSchemaAndData() {
 
 async function run() {
     try {
-        await checkAndCreateDatabase();
+        if (!process.env.DATABASE_URL) {
+            await checkAndCreateDatabase();
+        } else {
+            console.log('Using remote DATABASE_URL, skipping database creation step...');
+        }
         await initializeSchemaAndData();
         process.exit(0);
     } catch (err) {
