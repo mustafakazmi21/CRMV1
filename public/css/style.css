@@ -290,6 +290,26 @@ body {
     background-color: #319795;
 }
 
+.user-role-badge.SUCCESS {
+    background-color: #276749;
+    color: #c6f6d5;
+}
+
+.user-role-badge.PARTIAL {
+    background-color: #975a16;
+    color: #fefcbf;
+}
+
+.user-role-badge.BLOCKED {
+    background-color: #9b2c2c;
+    color: #fed7d7;
+}
+
+.user-role-badge.NO_DATA {
+    background-color: #4a5568;
+    color: #e2e8f0;
+}
+
 /* MAIN CONTENT */
 .main-content {
     flex-grow: 1;

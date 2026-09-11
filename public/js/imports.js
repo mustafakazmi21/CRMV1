@@ -14,6 +14,8 @@ function setupImportListeners() {
     const importBrandsInput = document.getElementById('import-brands-file-input');
     const importInfluencersBtn = document.getElementById('import-influencers-btn');
     const importInfluencersInput = document.getElementById('import-influencers-file-input');
+    const importAgenciesBtn = document.getElementById('import-agencies-btn');
+    const importAgenciesInput = document.getElementById('import-agencies-file-input');
     const confirmImportBtn = document.getElementById('confirm-import-btn');
 
     if (importBrandsBtn && importBrandsInput) {
@@ -38,6 +40,19 @@ function setupImportListeners() {
             if (e.target.files.length > 0) {
                 handleFileSelect(e.target.files[0], 'influencers');
                 importInfluencersInput.value = ''; // reset
+            }
+        });
+    }
+
+    if (importAgenciesBtn && importAgenciesInput) {
+        importAgenciesBtn.addEventListener('click', () => {
+            importAgenciesInput.click();
+        });
+
+        importAgenciesInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0], 'agencies');
+                importAgenciesInput.value = ''; // reset
             }
         });
     }
@@ -205,6 +220,10 @@ async function handleCommitImport() {
             loadBrands();
         } else if (importType === 'influencers') {
             loadInfluencers();
+        } else if (importType === 'agencies') {
+            if (typeof loadAgencies === 'function') {
+                loadAgencies();
+            }
         }
         
         loadDashboardStats();

@@ -18,15 +18,25 @@ CREATE TABLE users (
 
 CREATE TABLE agencies (
     id SERIAL PRIMARY KEY,
-    agency_name VARCHAR(255) NOT NULL,
-    contact_person VARCHAR(255),
-    email VARCHAR(255),
-    phone VARCHAR(100),
+    company_name TEXT NOT NULL,
     website TEXT,
-    notes TEXT,
+    linkedin TEXT,
+    instagram TEXT,
+    facebook TEXT,
+    twitter_x TEXT,
+    youtube TEXT,
+    phone TEXT,
+    email TEXT,
+    address TEXT,
+    status TEXT DEFAULT 'NO_DATA',
+    is_archived BOOLEAN DEFAULT FALSE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_agencies_website ON agencies (website);
+CREATE INDEX IF NOT EXISTS idx_agencies_company_name ON agencies (company_name);
+CREATE INDEX IF NOT EXISTS idx_agencies_status ON agencies (status);
 
 CREATE TABLE brands (
     id SERIAL PRIMARY KEY,

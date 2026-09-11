@@ -207,6 +207,10 @@ async function loadDashboardStats() {
         document.getElementById('stat-archived-brands').textContent = data.archivedBrands;
         document.getElementById('stat-active-influencers').textContent = data.activeInfluencers;
         document.getElementById('stat-archived-influencers').textContent = data.archivedInfluencers;
+        const activeAgenciesElem = document.getElementById('stat-active-agencies');
+        if (activeAgenciesElem) activeAgenciesElem.textContent = data.activeAgencies || 0;
+        const archivedAgenciesElem = document.getElementById('stat-archived-agencies');
+        if (archivedAgenciesElem) archivedAgenciesElem.textContent = data.archivedAgencies || 0;
         
         if (currentUser && currentUser.role === 'ADMIN') {
             document.getElementById('stat-total-logs').textContent = data.totalLogs;

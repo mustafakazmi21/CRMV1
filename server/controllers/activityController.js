@@ -41,6 +41,8 @@ async function getDashboardStats(req, res) {
             archivedBrands: 0,
             activeInfluencers: 0,
             archivedInfluencers: 0,
+            activeAgencies: 0,
+            archivedAgencies: 0,
             totalLogs: 0
         };
 
@@ -61,6 +63,15 @@ async function getDashboardStats(req, res) {
         `);
         stats.activeInfluencers = parseInt(influencersRes.rows[0].active_count);
         stats.archivedInfluencers = parseInt(influencersRes.rows[0].archived_count);
+
+        const agenciesRes = await pool.query(`
+            SELECT 
+                COUNT(*) FILTER (WHERE is_archived = false) as active_count,
+                COUNT(*) FILTER (WHERE is_archived = true) as archived_count
+            FROM agencies
+        `);
+        stats.activeAgencies = parseInt(agenciesRes.rows[0].active_count);
+        stats.archivedAgencies = parseInt(agenciesRes.rows[0].archived_count);
 
         const logsRes = await pool.query('SELECT COUNT(*) FROM activity_logs');
         stats.totalLogs = parseInt(logsRes.rows[0].count);
