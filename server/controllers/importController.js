@@ -8,8 +8,9 @@ async function getPreview(req, res) {
     }
 
     const { type } = req.body;
-    if (type !== 'brands' && type !== 'influencers') {
-        return res.status(400).json({ error: 'Valid import type (brands or influencers) is required' });
+    const validTypes = ['brands', 'influencers', 'agencies'];
+    if (!validTypes.includes(type)) {
+        return res.status(400).json({ error: 'Valid import type (brands, influencers, or agencies) is required' });
     }
 
     try {
@@ -29,7 +30,7 @@ async function commitImport(req, res) {
         return res.status(400).json({ error: 'Valid rows payload is required' });
     }
 
-    if (type !== 'brands' && type !== 'influencers') {
+    if (!validTypes.includes(type)) {
         return res.status(400).json({ error: 'Valid import type is required' });
     }
 
