@@ -254,6 +254,12 @@ async function viewAgencyDetail(id) {
             }
         }
 
+        // Configure convert to lead button
+        const convertBtn = document.getElementById('detail-agency-convert-btn');
+        if (convertBtn) {
+            convertBtn.onclick = () => addToLeads('Agency', agency.id);
+        }
+
         // Configure archive/unarchive button
         if (detailAgencyArchiveBtn) {
             if (agency.is_archived) {

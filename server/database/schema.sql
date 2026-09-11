@@ -98,7 +98,7 @@ CREATE INDEX IF NOT EXISTS idx_influencers_category ON influencers (category);
 
 CREATE TABLE leads (
     id SERIAL PRIMARY KEY,
-    agency_id INTEGER REFERENCES agencies(id) ON DELETE SET NULL,
+    agency_id INTEGER REFERENCES agencies(id) ON DELETE CASCADE,
     brand_id INTEGER REFERENCES brands(id) ON DELETE CASCADE,
     influencer_id INTEGER REFERENCES influencers(id) ON DELETE CASCADE,
     assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -110,8 +110,9 @@ CREATE TABLE leads (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     is_archived BOOLEAN DEFAULT FALSE NOT NULL,
     CONSTRAINT check_lead_type CHECK (
-        (brand_id IS NOT NULL AND influencer_id IS NULL) OR
-        (brand_id IS NULL AND influencer_id IS NOT NULL)
+        (brand_id IS NOT NULL AND influencer_id IS NULL AND agency_id IS NULL) OR
+        (brand_id IS NULL AND influencer_id IS NOT NULL AND agency_id IS NULL) OR
+        (brand_id IS NULL AND influencer_id IS NULL AND agency_id IS NOT NULL)
     )
 );
 

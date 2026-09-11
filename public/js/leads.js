@@ -345,18 +345,31 @@ function setupLeadsListeners() {
             }
 
             try {
-                const endpoint = type === 'Brand' ? `/api/brands?search=${encodeURIComponent(query)}&limit=10` : `/api/influencers?search=${encodeURIComponent(query)}&limit=10`;
+                let endpoint = `/api/influencers?search=${encodeURIComponent(query)}&limit=10`;
+                if (type === 'Brand') {
+                    endpoint = `/api/brands?search=${encodeURIComponent(query)}&limit=10`;
+                } else if (type === 'Agency') {
+                    endpoint = `/api/agencies?search=${encodeURIComponent(query)}&limit=10`;
+                }
+
                 const res = await fetch(endpoint);
                 if (res.ok) {
                     const data = await res.json();
-                    const items = type === 'Brand' ? data.brands : data.influencers;
+                    const items = type === 'Brand' ? (data.brands || []) : (type === 'Agency' ? (data.agencies || []) : (data.influencers || []));
                     
                     resultsDiv.innerHTML = '';
                     if (items.length === 0) {
                         resultsDiv.innerHTML = '<div style="padding: 0.5rem; color: #a0aec0;">No profiles found</div>';
                     } else {
                         items.forEach(item => {
-                            const name = type === 'Brand' ? item.brand_name : item.influencer_name;
+                            let name = '';
+                            if (type === 'Brand') {
+                                name = item.brand_name || item.display_name || item.username || 'Unnamed Brand';
+                            } else if (type === 'Agency') {
+                                name = item.company_name || item.companyName || item.website || 'Unnamed Agency';
+                            } else {
+                                name = item.influencer_name || item.display_name || item.username || 'Unnamed Influencer';
+                            }
                             const div = document.createElement('div');
                             div.style.padding = '0.5rem';
                             div.style.cursor = 'pointer';
@@ -398,6 +411,7 @@ function setupLeadsListeners() {
                 notes: notes
             };
             if (type === 'Brand') body.brand_id = parseInt(selectedId);
+            else if (type === 'Agency') body.agency_id = parseInt(selectedId);
             else body.influencer_id = parseInt(selectedId);
 
             try {
@@ -478,10 +492,20 @@ function renderLeadsTable(leads) {
 
     leads.forEach(l => {
         const tr = document.createElement('tr');
-        const leadName = l.brand_name || l.influencer_name;
-        const leadType = l.brand_id ? 'Brand' : 'Influencer';
+        const leadName = l.brand_name || l.influencer_name || l.agency_name || 'Unnamed Lead';
+        const leadType = l.agency_id ? 'Agency' : (l.brand_id ? 'Brand' : 'Influencer');
         const assignedUser = l.assigned_username || '<span style="color: #a0aec0; font-style: italic;">Unassigned</span>';
         
+        let typeBadgeBg = '#ebf8ff';
+        let typeBadgeColor = '#2b6cb0';
+        if (leadType === 'Brand') {
+            typeBadgeBg = '#e2e8f0';
+            typeBadgeColor = '#4a5568';
+        } else if (leadType === 'Agency') {
+            typeBadgeBg = '#feebc8';
+            typeBadgeColor = '#c05621';
+        }
+
         // Color coding based on temperature
         let rowColor = '';
         if (l.temperature === 'Hot') rowColor = 'rgba(254, 215, 215, 0.3)'; // red/orange tint
@@ -509,7 +533,7 @@ function renderLeadsTable(leads) {
         tr.innerHTML = `
             <td style="text-align: center;"><input type="checkbox" class="lead-row-checkbox" value="${l.id}" onchange="updateBulkToolbar()"></td>
             <td><strong>${leadName}</strong></td>
-            <td><span class="user-role-badge" style="background-color: ${l.brand_id ? '#e2e8f0' : '#ebf8ff'}; color: ${l.brand_id ? '#4a5568' : '#2b6cb0'};">${leadType}</span></td>
+            <td><span class="user-role-badge" style="background-color: ${typeBadgeBg}; color: ${typeBadgeColor};">${leadType}</span></td>
             <td>${assignedUser}</td>
             <td>${tempSelectHTML}</td>
             <td>${statusSelectHTML}</td>
@@ -656,7 +680,7 @@ async function viewLeadDetail(id) {
         activeLeadTimeline = data.timeline;
 
         // Title and badge
-        const leadName = lead.brand_name || lead.influencer_name;
+        const leadName = lead.brand_name || lead.influencer_name || lead.agency_name || 'Lead Details';
         document.getElementById('detail-lead-title').textContent = leadName;
         
         const badge = document.getElementById('detail-lead-status-badge');
@@ -716,7 +740,17 @@ function renderProfileInfoCard(lead) {
     const grid = document.getElementById('lead-linked-details-grid');
     grid.innerHTML = '';
 
-    if (lead.brand_id) {
+    if (lead.agency_id) {
+        const websiteLink = lead.agency_website ? (lead.agency_website.startsWith('http') ? lead.agency_website : `https://${lead.agency_website}`) : null;
+        grid.innerHTML = `
+            <div><strong>Type:</strong> Agency Profile</div>
+            <div><strong>Website:</strong> ${websiteLink ? `<a href="${websiteLink}" target="_blank">${lead.agency_website}</a>` : '-'}</div>
+            <div><strong>Phone:</strong> ${lead.agency_phone || '-'}</div>
+            <div><strong>Email:</strong> ${lead.agency_email ? `<a href="mailto:${lead.agency_email}">${lead.agency_email}</a>` : '-'}</div>
+            <div><strong>Agency Status:</strong> ${lead.agency_status || '-'}</div>
+            <div><strong>Follow-up Status:</strong> ${lead.next_follow_up_date ? 'Scheduled' : 'None scheduled'}</div>
+        `;
+    } else if (lead.brand_id) {
         grid.innerHTML = `
             <div><strong>Type:</strong> Brand Profile</div>
             <div><strong>Category:</strong> ${lead.brand_category || '-'}</div>
@@ -792,13 +826,14 @@ function loadLeadTimelineData() {
     }
 }
 
-// Create lead from Brand / Influencer detail popup
+// Create lead from Brand / Influencer / Agency detail popup
 async function addToLeads(entityType, entityId) {
     const confirmMsg = `Initialize this ${entityType} as a lead in the CRM?`;
     if (!confirm(confirmMsg)) return;
 
     const body = {};
     if (entityType === 'Brand') body.brand_id = entityId;
+    else if (entityType === 'Agency') body.agency_id = entityId;
     else body.influencer_id = entityId;
 
     try {
@@ -812,9 +847,10 @@ async function addToLeads(entityType, entityId) {
             const newLead = await res.json();
             showToast('Lead initialized successfully!', 'success');
             
-            // Close Brand/Influencer detail modal
+            // Close Brand/Influencer/Agency detail modal
             closeModal('detail-brand-modal');
             closeModal('detail-influencer-modal');
+            closeModal('detail-agency-modal');
             
             // Redirect to leads page
             const leadsNavLink = document.querySelector('.nav-link[data-target="leads-view"]');
@@ -828,6 +864,7 @@ async function addToLeads(entityType, entityId) {
                 showToast('Lead already exists, opening it...', 'info');
                 closeModal('detail-brand-modal');
                 closeModal('detail-influencer-modal');
+                closeModal('detail-agency-modal');
                 const leadsNavLink = document.querySelector('.nav-link[data-target="leads-view"]');
                 if (leadsNavLink) leadsNavLink.click();
                 viewLeadDetail(data.lead.id);

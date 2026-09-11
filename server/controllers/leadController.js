@@ -62,8 +62,15 @@ async function getLeads(req, res) {
 
         if (search && search.trim() !== '') {
             const searchPattern = `%${search.trim()}%`;
-            whereClauses.push(`(b.display_name ILIKE $${paramIdx} OR b.username ILIKE $${paramIdx} OR i.display_name ILIKE $${paramIdx} OR i.username ILIKE $${paramIdx})`);
+            whereClauses.push(`(b.display_name ILIKE $${paramIdx} OR b.username ILIKE $${paramIdx} OR i.display_name ILIKE $${paramIdx} OR i.username ILIKE $${paramIdx} OR a.company_name ILIKE $${paramIdx} OR a.website ILIKE $${paramIdx})`);
             params.push(searchPattern);
+            paramIdx++;
+        }
+
+        if (location && location.trim() !== '') {
+            const locPattern = `%${location.trim()}%`;
+            whereClauses.push(`(b.snippet ILIKE $${paramIdx} OR i.category ILIKE $${paramIdx} OR i.snippet ILIKE $${paramIdx} OR a.address ILIKE $${paramIdx})`);
+            params.push(locPattern);
             paramIdx++;
         }
 
@@ -75,6 +82,7 @@ async function getLeads(req, res) {
             FROM leads l
             LEFT JOIN brands b ON l.brand_id = b.id
             LEFT JOIN influencers i ON l.influencer_id = i.id
+            LEFT JOIN agencies a ON l.agency_id = a.id
             ${whereStr}
         `;
         const countResult = await pool.query(countQuery, params);
@@ -93,10 +101,12 @@ async function getLeads(req, res) {
                    b.snippet as brand_category, 
                    b.instagram_url as brand_url,
                    COALESCE(i.display_name, i.username, '') as influencer_name, i.followers as influencer_followers, i.instagram_url as influencer_url,
+                   a.company_name as agency_name, a.website as agency_website, a.phone as agency_phone, a.email as agency_email, a.status as agency_status, a.address as agency_address,
                    u.username as assigned_username
             FROM leads l
             LEFT JOIN brands b ON l.brand_id = b.id
             LEFT JOIN influencers i ON l.influencer_id = i.id
+            LEFT JOIN agencies a ON l.agency_id = a.id
             LEFT JOIN users u ON l.assigned_to = u.id
             ${whereStr}
             ${orderClause}
@@ -122,7 +132,7 @@ async function getLeads(req, res) {
     }
 }
 
-// Get single lead with full brand/influencer detail and chronological activity timeline
+// Get single lead with full brand/influencer/agency detail and chronological activity timeline
 async function getLeadById(req, res) {
     const { id } = req.params;
 
@@ -133,10 +143,12 @@ async function getLeadById(req, res) {
                    b.snippet as brand_category, 
                    b.instagram_url as brand_url,
                    COALESCE(i.display_name, i.username, '') as influencer_name, i.followers as influencer_followers, i.instagram_url as influencer_url,
+                   a.company_name as agency_name, a.website as agency_website, a.phone as agency_phone, a.email as agency_email, a.status as agency_status, a.address as agency_address,
                    u.username as assigned_username
             FROM leads l
             LEFT JOIN brands b ON l.brand_id = b.id
             LEFT JOIN influencers i ON l.influencer_id = i.id
+            LEFT JOIN agencies a ON l.agency_id = a.id
             LEFT JOIN users u ON l.assigned_to = u.id
             WHERE l.id = $1 AND l.is_archived = false
         `;
@@ -172,13 +184,13 @@ async function getLeadById(req, res) {
     }
 }
 
-// Create new lead from Brand or Influencer
+// Create new lead from Brand, Influencer, or Agency
 async function createLead(req, res) {
-    const { brand_id, influencer_id, notes } = req.body;
+    const { brand_id, influencer_id, agency_id, notes } = req.body;
     const username = req.session.user.username;
 
-    if (!brand_id && !influencer_id) {
-        return res.status(400).json({ error: 'Brand ID or Influencer ID is required' });
+    if (!brand_id && !influencer_id && !agency_id) {
+        return res.status(400).json({ error: 'Brand ID, Influencer ID, or Agency ID is required' });
     }
 
     try {
@@ -186,35 +198,46 @@ async function createLead(req, res) {
         let checkRes;
         if (brand_id) {
             checkRes = await pool.query("SELECT l.*, COALESCE(b.display_name, b.username, '') as record_name FROM leads l JOIN brands b ON l.brand_id = b.id WHERE l.brand_id = $1 AND l.is_archived = false", [brand_id]);
-        } else {
+        } else if (influencer_id) {
             checkRes = await pool.query("SELECT l.*, COALESCE(i.display_name, i.username, '') as record_name FROM leads l JOIN influencers i ON l.influencer_id = i.id WHERE l.influencer_id = $1 AND l.is_archived = false", [influencer_id]);
+        } else if (agency_id) {
+            checkRes = await pool.query("SELECT l.*, COALESCE(a.company_name, a.website, '') as record_name FROM leads l JOIN agencies a ON l.agency_id = a.id WHERE l.agency_id = $1 AND l.is_archived = false", [agency_id]);
         }
 
         if (checkRes.rowCount > 0) {
             return res.status(409).json({ error: 'A lead already exists for this entity', lead: checkRes.rows[0] });
         }
 
-        // Get name for audit logging
+        // Get name and type for audit logging
         let recordName = '';
+        let recordType = 'Brand';
+        let recordId = brand_id;
         if (brand_id) {
             const nameRes = await pool.query("SELECT COALESCE(display_name, username, '') as brand_name FROM brands WHERE id = $1", [brand_id]);
             if (nameRes.rowCount > 0) recordName = nameRes.rows[0].brand_name;
-        } else {
+            recordType = 'Brand';
+            recordId = brand_id;
+        } else if (influencer_id) {
             const nameRes = await pool.query("SELECT COALESCE(display_name, username, '') as influencer_name FROM influencers WHERE id = $1", [influencer_id]);
             if (nameRes.rowCount > 0) recordName = nameRes.rows[0].influencer_name;
+            recordType = 'Influencer';
+            recordId = influencer_id;
+        } else if (agency_id) {
+            const nameRes = await pool.query("SELECT COALESCE(company_name, website, 'Agency') as agency_name FROM agencies WHERE id = $1", [agency_id]);
+            if (nameRes.rowCount > 0) recordName = nameRes.rows[0].agency_name;
+            recordType = 'Agency';
+            recordId = agency_id;
         }
 
         const insertQuery = `
-            INSERT INTO leads (brand_id, influencer_id, status, notes)
-            VALUES ($1, $2, 'New', $3)
+            INSERT INTO leads (brand_id, influencer_id, agency_id, status, notes)
+            VALUES ($1, $2, $3, 'New', $4)
             RETURNING *
         `;
-        const insertRes = await pool.query(insertQuery, [brand_id || null, influencer_id || null, notes || '']);
+        const insertRes = await pool.query(insertQuery, [brand_id || null, influencer_id || null, agency_id || null, notes || '']);
         const newLead = insertRes.rows[0];
 
         // Global Audit Trail Log
-        const recordType = brand_id ? 'Brand' : 'Influencer';
-        const recordId = brand_id || influencer_id;
         await logActivity(username, 'Lead created', recordType, recordId, recordName);
 
         // Timeline Entry
@@ -240,10 +263,14 @@ async function assignLead(req, res) {
 
     try {
         const leadRes = await pool.query(`
-            SELECT l.*, COALESCE(b.display_name, b.username, '') as brand_name, COALESCE(i.display_name, i.username, '') as influencer_name 
+            SELECT l.*, 
+                   COALESCE(b.display_name, b.username, '') as brand_name, 
+                   COALESCE(i.display_name, i.username, '') as influencer_name,
+                   COALESCE(a.company_name, a.website, '') as agency_name
             FROM leads l 
             LEFT JOIN brands b ON l.brand_id = b.id 
             LEFT JOIN influencers i ON l.influencer_id = i.id 
+            LEFT JOIN agencies a ON l.agency_id = a.id
             WHERE l.id = $1 AND l.is_archived = false
         `, [id]);
 
@@ -251,9 +278,9 @@ async function assignLead(req, res) {
             return res.status(404).json({ error: 'Lead not found' });
         }
         const lead = leadRes.rows[0];
-        const recordName = lead.brand_name || lead.influencer_name;
-        const recordType = lead.brand_id ? 'Brand' : 'Influencer';
-        const recordId = lead.brand_id || lead.influencer_id;
+        const recordName = lead.brand_name || lead.influencer_name || lead.agency_name;
+        const recordType = lead.agency_id ? 'Agency' : (lead.brand_id ? 'Brand' : 'Influencer');
+        const recordId = lead.agency_id || lead.brand_id || lead.influencer_id;
 
         // Get old assignee name
         let oldAssigneeName = 'Unassigned';
@@ -303,10 +330,14 @@ async function updateLeadStatus(req, res) {
 
     try {
         const leadRes = await pool.query(`
-            SELECT l.*, COALESCE(b.display_name, b.username, '') as brand_name, COALESCE(i.display_name, i.username, '') as influencer_name 
+            SELECT l.*, 
+                   COALESCE(b.display_name, b.username, '') as brand_name, 
+                   COALESCE(i.display_name, i.username, '') as influencer_name,
+                   COALESCE(a.company_name, a.website, '') as agency_name
             FROM leads l 
             LEFT JOIN brands b ON l.brand_id = b.id 
             LEFT JOIN influencers i ON l.influencer_id = i.id 
+            LEFT JOIN agencies a ON l.agency_id = a.id
             WHERE l.id = $1 AND l.is_archived = false
         `, [id]);
 
@@ -342,9 +373,9 @@ async function updateLeadStatus(req, res) {
         await pool.query(`UPDATE leads SET ${updates.join(', ')} WHERE id = $${paramIdx}`, params);
 
         // Audit & Timeline Logging
-        const recordName = lead.brand_name || lead.influencer_name;
-        const recordType = lead.brand_id ? 'Brand' : 'Influencer';
-        const recordId = lead.brand_id || lead.influencer_id;
+        const recordName = lead.brand_name || lead.influencer_name || lead.agency_name;
+        const recordType = lead.agency_id ? 'Agency' : (lead.brand_id ? 'Brand' : 'Influencer');
+        const recordId = lead.agency_id || lead.brand_id || lead.influencer_id;
         
         for (const part of detailsTextParts) {
             await pool.query(
@@ -408,10 +439,15 @@ async function bulkUpdateLeads(req, res) {
         // Get leads info for logging
         const idsList = leadIds.join(',');
         const leadsRes = await pool.query(`
-            SELECT l.id, l.${fieldToUpdate} as old_val, COALESCE(b.display_name, b.username, '') as brand_name, COALESCE(i.display_name, i.username, '') as influencer_name, l.brand_id, l.influencer_id
+            SELECT l.id, l.${fieldToUpdate} as old_val, 
+                   COALESCE(b.display_name, b.username, '') as brand_name, 
+                   COALESCE(i.display_name, i.username, '') as influencer_name,
+                   COALESCE(a.company_name, a.website, '') as agency_name,
+                   l.brand_id, l.influencer_id, l.agency_id
             FROM leads l
             LEFT JOIN brands b ON l.brand_id = b.id
             LEFT JOIN influencers i ON l.influencer_id = i.id
+            LEFT JOIN agencies a ON l.agency_id = a.id
             WHERE l.id = ANY($1::int[])
         `, [leadIds]);
 
@@ -434,9 +470,9 @@ async function bulkUpdateLeads(req, res) {
         for (const lead of leadsRes.rows) {
             if (lead.old_val == valueStr && action !== 'archive') continue; // skip if unchanged
 
-            const recordName = lead.brand_name || lead.influencer_name;
-            const recordType = lead.brand_id ? 'Brand' : 'Influencer';
-            const recordId = lead.brand_id || lead.influencer_id;
+            const recordName = lead.brand_name || lead.influencer_name || lead.agency_name;
+            const recordType = lead.agency_id ? 'Agency' : (lead.brand_id ? 'Brand' : 'Influencer');
+            const recordId = lead.agency_id || lead.brand_id || lead.influencer_id;
             
             // Format old value display for assign
             let oldDisplay = lead.old_val;
@@ -479,10 +515,14 @@ async function addLeadActivity(req, res) {
 
     try {
         const leadRes = await pool.query(`
-            SELECT l.*, COALESCE(b.display_name, b.username, '') as brand_name, COALESCE(i.display_name, i.username, '') as influencer_name 
+            SELECT l.*, 
+                   COALESCE(b.display_name, b.username, '') as brand_name, 
+                   COALESCE(i.display_name, i.username, '') as influencer_name,
+                   COALESCE(a.company_name, a.website, '') as agency_name
             FROM leads l 
             LEFT JOIN brands b ON l.brand_id = b.id 
             LEFT JOIN influencers i ON l.influencer_id = i.id 
+            LEFT JOIN agencies a ON l.agency_id = a.id
             WHERE l.id = $1 AND l.is_archived = false
         `, [id]);
 
@@ -490,9 +530,9 @@ async function addLeadActivity(req, res) {
             return res.status(404).json({ error: 'Lead not found' });
         }
         const lead = leadRes.rows[0];
-        const recordName = lead.brand_name || lead.influencer_name;
-        const recordType = lead.brand_id ? 'Brand' : 'Influencer';
-        const recordId = lead.brand_id || lead.influencer_id;
+        const recordName = lead.brand_name || lead.influencer_name || lead.agency_name;
+        const recordType = lead.agency_id ? 'Agency' : (lead.brand_id ? 'Brand' : 'Influencer');
+        const recordId = lead.agency_id || lead.brand_id || lead.influencer_id;
 
         // Insert timeline activity
         await pool.query(
@@ -546,11 +586,14 @@ async function getEmployeeActivities(req, res) {
 
         const activitiesQuery = `
             SELECT la.*,
-                   COALESCE(b.display_name, b.username, '') as brand_name, COALESCE(i.display_name, i.username, '') as influencer_name
+                   COALESCE(b.display_name, b.username, '') as brand_name, 
+                   COALESCE(i.display_name, i.username, '') as influencer_name,
+                   COALESCE(a.company_name, a.website, '') as agency_name
             FROM lead_activities la
             JOIN leads l ON la.lead_id = l.id
             LEFT JOIN brands b ON l.brand_id = b.id
             LEFT JOIN influencers i ON l.influencer_id = i.id
+            LEFT JOIN agencies a ON l.agency_id = a.id
             ORDER BY la.timestamp DESC
             LIMIT $1 OFFSET $2
         `;
