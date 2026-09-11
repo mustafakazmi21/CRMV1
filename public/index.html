@@ -366,11 +366,18 @@
 
                 <div class="controls-bar" style="flex-wrap: wrap;">
                     <div class="search-box-wrapper" style="flex: 1; min-width: 250px;">
-                        <input type="text" id="influencers-search-input" placeholder="Search by name, lead, category focus...">
+                        <input type="text" id="influencers-search-input" placeholder="Search by username, display name, category, status, snippet...">
                     </div>
                     <div class="filter-wrapper" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                        <input type="text" id="influencers-location-filter" placeholder="Location..." style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
-                        <input type="text" id="influencers-lead-by-filter" placeholder="Lead By..." style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
+                        <input type="text" id="influencers-category-filter" placeholder="Category..." style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
+                        <select id="influencers-status-filter" style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="">All Statuses</option>
+                            <option value="New">New</option>
+                            <option value="Contacted">Contacted</option>
+                            <option value="In Discussion">In Discussion</option>
+                            <option value="Collab Agreed">Collab Agreed</option>
+                            <option value="Declined">Declined</option>
+                        </select>
                         <label style="margin-left: 0.5rem; white-space: nowrap;">
                             <input type="checkbox" id="influencers-archived-checkbox"> Show Archived Influencers
                         </label>
@@ -381,12 +388,15 @@
                     <table class="spreadsheet-table" id="influencers-table">
                         <thead>
                             <tr>
-                                <th>Influencer Name</th>
-                                <th>Lead By</th>
-                                <th>Content Focus</th>
+                                <th>Username</th>
+                                <th>Display Name</th>
+                                <th>Instagram</th>
                                 <th>Followers</th>
-                                <th>Instagram Link</th>
-                                <th>Send Date</th>
+                                <th>Following</th>
+                                <th>Posts</th>
+                                <th>Category</th>
+                                <th>Status</th>
+                                <th>Status Timestamp</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -829,37 +839,75 @@
             </header>
             <form id="add-influencer-form" class="modal-form">
                 <div class="form-grid">
+                    <div class="form-group">
+                        <label>Username *</label>
+                        <input type="text" name="username" placeholder="e.g. johndoe" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Display Name</label>
+                        <input type="text" name="display_name" placeholder="e.g. John Doe">
+                    </div>
                     <div class="form-group span-2">
-                        <label>Influencer Name *</label>
-                        <input type="text" name="influencer_name" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Lead By</label>
-                        <input type="text" name="lead_by" placeholder="e.g. employee name">
-                    </div>
-                    <div class="form-group">
                         <label>Instagram URL</label>
-                        <input type="text" name="instagram_url" placeholder="https://instagram.com/...">
+                        <input type="text" name="instagram_url" placeholder="https://instagram.com/johndoe">
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <input type="text" name="category" placeholder="e.g. Fashion, Tech, Fitness">
                     </div>
                     <div class="form-group">
                         <label>Followers</label>
-                        <input type="text" name="followers" placeholder="e.g. 451k">
+                        <input type="number" name="followers" placeholder="e.g. 50000">
                     </div>
                     <div class="form-group">
-                        <label>Average Comments</label>
-                        <input type="text" name="comment_average" placeholder="e.g. 400">
+                        <label>Followers Formatted</label>
+                        <input type="text" name="followers_formatted" placeholder="e.g. 50K">
                     </div>
                     <div class="form-group">
-                        <label>Send Date</label>
-                        <input type="date" name="send_date">
+                        <label>Following</label>
+                        <input type="number" name="following" placeholder="e.g. 450">
+                    </div>
+                    <div class="form-group">
+                        <label>Posts</label>
+                        <input type="number" name="posts" placeholder="e.g. 120">
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select name="status">
+                            <option value="New">New</option>
+                            <option value="Contacted">Contacted</option>
+                            <option value="In Discussion">In Discussion</option>
+                            <option value="Collab Agreed">Collab Agreed</option>
+                            <option value="Declined">Declined</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Status Timestamp</label>
+                        <input type="datetime-local" name="status_timestamp">
+                    </div>
+                    <div class="form-group">
+                        <label>First Seen</label>
+                        <input type="datetime-local" name="first_seen">
+                    </div>
+                    <div class="form-group">
+                        <label>Source Query</label>
+                        <input type="text" name="source_query">
                     </div>
                     <div class="form-group span-2">
-                        <label>Content Focus & Why This Person</label>
-                        <textarea name="content_why_this_person" rows="3"></textarea>
+                        <label>Source URL</label>
+                        <input type="text" name="source_url">
                     </div>
                     <div class="form-group span-2">
-                        <label>Outreach Script</label>
-                        <textarea name="script" rows="4"></textarea>
+                        <label>Remarks</label>
+                        <textarea name="remarks" rows="2"></textarea>
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Snippet</label>
+                        <textarea name="snippet" rows="2"></textarea>
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Script</label>
+                        <textarea name="script" rows="2"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -874,7 +922,7 @@
     <div id="detail-influencer-modal" class="modal-overlay hidden">
         <div class="modal-content large-modal">
             <header class="modal-header">
-                <h2 id="detail-influencer-title">Saheli Chatterjee</h2>
+                <h2 id="detail-influencer-title">Influencer Details</h2>
                 <div class="modal-header-actions">
                     <button class="btn primary-btn" id="detail-influencer-convert-btn">Add to Leads</button>
                     <button class="btn danger-btn" id="detail-influencer-archive-btn">Archive Influencer</button>
@@ -892,37 +940,75 @@
                 <form id="edit-influencer-form" class="modal-form">
                     <input type="hidden" name="id">
                     <div class="form-grid">
+                        <div class="form-group">
+                            <label>Username *</label>
+                            <input type="text" name="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Display Name</label>
+                            <input type="text" name="display_name">
+                        </div>
                         <div class="form-group span-2">
-                            <label>Influencer Name *</label>
-                            <input type="text" name="influencer_name" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Lead By</label>
-                            <input type="text" name="lead_by">
-                        </div>
-                        <div class="form-group">
                             <label>Instagram URL</label>
                             <input type="text" name="instagram_url">
                         </div>
                         <div class="form-group">
+                            <label>Category</label>
+                            <input type="text" name="category">
+                        </div>
+                        <div class="form-group">
                             <label>Followers</label>
-                            <input type="text" name="followers">
+                            <input type="number" name="followers">
                         </div>
                         <div class="form-group">
-                            <label>Average Comments</label>
-                            <input type="text" name="comment_average">
+                            <label>Followers Formatted</label>
+                            <input type="text" name="followers_formatted">
                         </div>
                         <div class="form-group">
-                            <label>Send Date</label>
-                            <input type="date" name="send_date">
+                            <label>Following</label>
+                            <input type="number" name="following">
+                        </div>
+                        <div class="form-group">
+                            <label>Posts</label>
+                            <input type="number" name="posts">
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select name="status">
+                                <option value="New">New</option>
+                                <option value="Contacted">Contacted</option>
+                                <option value="In Discussion">In Discussion</option>
+                                <option value="Collab Agreed">Collab Agreed</option>
+                                <option value="Declined">Declined</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Status Timestamp</label>
+                            <input type="datetime-local" name="status_timestamp">
+                        </div>
+                        <div class="form-group">
+                            <label>First Seen</label>
+                            <input type="datetime-local" name="first_seen">
+                        </div>
+                        <div class="form-group">
+                            <label>Source Query</label>
+                            <input type="text" name="source_query">
                         </div>
                         <div class="form-group span-2">
-                            <label>Content Focus & Why This Person</label>
-                            <textarea name="content_why_this_person" rows="3"></textarea>
+                            <label>Source URL</label>
+                            <input type="text" name="source_url">
                         </div>
                         <div class="form-group span-2">
-                            <label>Outreach Script</label>
-                            <textarea name="script" rows="4"></textarea>
+                            <label>Remarks</label>
+                            <textarea name="remarks" rows="2"></textarea>
+                        </div>
+                        <div class="form-group span-2">
+                            <label>Snippet</label>
+                            <textarea name="snippet" rows="2"></textarea>
+                        </div>
+                        <div class="form-group span-2">
+                            <label>Script</label>
+                            <textarea name="script" rows="2"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">

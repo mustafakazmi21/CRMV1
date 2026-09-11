@@ -60,19 +60,31 @@ CREATE INDEX IF NOT EXISTS idx_brands_status ON brands (status);
 CREATE TABLE influencers (
     id SERIAL PRIMARY KEY,
     agency_id INTEGER REFERENCES agencies(id) ON DELETE SET NULL,
-    influencer_name VARCHAR(255) NOT NULL,
-    location VARCHAR(255),
-    lead_by VARCHAR(255),
-    content_why_this_person TEXT,
+    username VARCHAR(255),
+    display_name VARCHAR(255),
     instagram_url TEXT,
-    followers VARCHAR(100),
+    followers BIGINT,
+    followers_formatted VARCHAR(100),
+    following BIGINT,
+    posts BIGINT,
+    category VARCHAR(255),
+    status VARCHAR(100) DEFAULT 'New',
+    status_timestamp TIMESTAMP,
+    remarks TEXT,
+    snippet TEXT,
+    source_query TEXT,
+    source_url TEXT,
+    first_seen TIMESTAMP,
     script TEXT,
-    comment_average VARCHAR(100),
-    send_date DATE,
     is_archived BOOLEAN DEFAULT FALSE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_influencers_instagram_url ON influencers (instagram_url);
+CREATE INDEX IF NOT EXISTS idx_influencers_username ON influencers (username);
+CREATE INDEX IF NOT EXISTS idx_influencers_status ON influencers (status);
+CREATE INDEX IF NOT EXISTS idx_influencers_category ON influencers (category);
 
 CREATE TABLE leads (
     id SERIAL PRIMARY KEY,

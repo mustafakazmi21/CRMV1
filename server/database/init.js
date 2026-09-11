@@ -107,26 +107,31 @@ async function initializeSchemaAndData() {
         // Seed influencers
         const influencersPath = path.join(__dirname, 'influencers.json');
         if (fs.existsSync(influencersPath)) {
-            console.log('Reading and seeding influencers...');
             const influencers = JSON.parse(fs.readFileSync(influencersPath, 'utf8'));
+            if (Array.isArray(influencers) && influencers.length > 0) {
+                console.log('Reading and seeding influencers...');
+                const queryText = `
+                    INSERT INTO influencers (
+                        username, remarks, instagram_url, followers, followers_formatted,
+                        following, snippet, source_query, source_url, first_seen,
+                        display_name, posts, script, status, status_timestamp, category
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                `;
 
-            const queryText = `
-                INSERT INTO influencers (
-                    influencer_name, lead_by, content_why_this_person, instagram_url,
-                    followers, script, comment_average, send_date
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            `;
-
-            let count = 0;
-            for (const inf of influencers) {
-                const sendDate = inf.send_date || null;
-                await pool.query(queryText, [
-                    inf.influencer_name, inf.lead_by, inf.content_why_this_person, inf.instagram_url,
-                    inf.followers, inf.script, inf.comment_average, sendDate
-                ]);
-                count++;
+                let count = 0;
+                for (const inf of influencers) {
+                    await pool.query(queryText, [
+                        inf.username || null, inf.remarks || null, inf.instagram_url || null,
+                        inf.followers || null, inf.followers_formatted || null,
+                        inf.following || null, inf.snippet || null,
+                        inf.source_query || null, inf.source_url || null, inf.first_seen || null,
+                        inf.display_name || null, inf.posts || null, inf.script || null,
+                        inf.status || 'New', inf.status_timestamp || null, inf.category || null
+                    ]);
+                    count++;
+                }
+                console.log(`Successfully seeded ${count} influencers.`);
             }
-            console.log(`Successfully seeded ${count} influencers.`);
         }
 
         console.log('Database initialization completed successfully.');
