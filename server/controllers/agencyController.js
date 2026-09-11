@@ -47,7 +47,7 @@ async function getAgencies(req, res) {
         }
 
         // Add sorting, limit, and offset
-        selectQuery += ` ORDER BY updated_at DESC, id DESC LIMIT $${selectParams.length + 1} OFFSET $${selectParams.length + 2}`;
+        selectQuery += ` ORDER BY id ASC LIMIT $${selectParams.length + 1} OFFSET $${selectParams.length + 2}`;
         selectParams.push(limit, offset);
 
         const countResult = await pool.query(countQuery, countParams);
@@ -56,8 +56,14 @@ async function getAgencies(req, res) {
 
         const selectResult = await pool.query(selectQuery, selectParams);
 
+        const agencies = selectResult.rows.map(row => ({
+            ...row,
+            companyName: row.company_name,
+            twitterX: row.twitter_x
+        }));
+
         return res.json({
-            agencies: selectResult.rows,
+            agencies,
             pagination: {
                 page,
                 limit,
@@ -86,8 +92,15 @@ async function getAgencyById(req, res) {
             ['Agency', id]
         );
 
+        const agencyRow = agencyRes.rows[0];
+        const agency = {
+            ...agencyRow,
+            companyName: agencyRow.company_name,
+            twitterX: agencyRow.twitter_x
+        };
+
         return res.json({
-            agency: agencyRes.rows[0],
+            agency,
             activityLogs: logsRes.rows
         });
     } catch (err) {

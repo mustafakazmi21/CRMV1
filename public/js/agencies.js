@@ -233,9 +233,24 @@ async function viewAgencyDetail(id) {
 
         // Fill form fields
         const formElements = editAgencyForm.elements;
-        for (const key in agency) {
+        const fieldMapping = {
+            'company_name': agency.company_name || agency.companyName || '',
+            'website': agency.website || '',
+            'linkedin': agency.linkedin || '',
+            'instagram': agency.instagram || '',
+            'facebook': agency.facebook || '',
+            'twitter_x': agency.twitter_x || agency.twitterX || agency.twitter || '',
+            'youtube': agency.youtube || '',
+            'phone': agency.phone || '',
+            'email': agency.email || '',
+            'status': agency.status || 'NO_DATA',
+            'address': agency.address || '',
+            'id': agency.id || ''
+        };
+
+        for (const key in fieldMapping) {
             if (formElements[key]) {
-                formElements[key].value = agency[key] !== null && agency[key] !== undefined ? agency[key] : '';
+                formElements[key].value = fieldMapping[key];
             }
         }
 
