@@ -21,13 +21,24 @@ const PORT = process.env.PORT || 3002;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Configure session middleware
+const pgSession = require('connect-pg-simple')(session);
+const pool = require('./config/db');
+
+// Trust proxy for Render / production HTTPS
+app.set('trust proxy', 1);
+
+// Configure session middleware with PostgreSQL persistence
 app.use(session({
+    store: new pgSession({
+        pool: pool,
+        tableName: 'session',
+        createTableIfMissing: true
+    }),
     secret: process.env.SESSION_SECRET || 'crm_super_secret_session_key_2026',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false, // Set to true if running on HTTPS
+        secure: false,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
