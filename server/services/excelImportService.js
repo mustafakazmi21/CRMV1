@@ -760,155 +760,335 @@ function cleanExcelVal(val) {
     return s;
 }
 
-// Commit the validated rows to database
-async function commitImport(validRows, type, username, filename) {
-    const client = await pool.connect();
+const AGENCY_COLUMNS = [
+    'company_name', 'website', 'linkedin', 'instagram',
+    'facebook', 'twitter_x', 'youtube', 'phone',
+    'email', 'address', 'status'
+];
+
+const BRAND_COLUMNS = [
+    'username', 'display_name', 'instagram_url', 'followers', 'followers_formatted',
+    'following', 'following_formatted', 'posts', 'posts_formatted', 'snippet',
+    'source_query', 'source_url', 'first_seen', 'script', 'status',
+    'message_received_brand', 'status_timestamp'
+];
+
+const INFLUENCER_COLUMNS = [
+    'username', 'display_name', 'instagram_url', 'followers', 'followers_formatted',
+    'following', 'posts', 'category', 'status', 'status_timestamp',
+    'remarks', 'snippet', 'source_query', 'source_url', 'first_seen', 'script'
+];
+
+async function commitAgencies(client, inserts, updates) {
     let newImported = 0;
     let updatedImported = 0;
+    let failedImported = 0;
 
-    try {
-        await client.query('BEGIN');
+    // Batch Inserts (Chunk size: 300)
+    const insertBatchSize = 300;
+    for (let i = 0; i < inserts.length; i += insertBatchSize) {
+        const chunk = inserts.slice(i, i + insertBatchSize);
+        try {
+            await client.query('BEGIN');
+            const values = [];
+            const valuePlaceholders = [];
+            let paramIdx = 1;
 
-        if (type === 'brands') {
-            for (const item of validRows) {
-                if (item.action === 'INSERT') {
-                    const columns = Object.keys(item.data);
-                    const values = Object.values(item.data);
-                    const placeholders = columns.map((_, i) => `$${i + 1}`);
-
-                    const q = `
-                        INSERT INTO brands (${columns.join(', ')})
-                        VALUES (${placeholders.join(', ')})
-                        RETURNING id
-                    `;
-                    const res = await client.query(q, values);
-                    newImported++;
-
-                    // Log brand creation
-                    await logActivity(username, 'Brand added', 'Brand', res.rows[0].id, item.name);
-                } else if (item.action === 'UPDATE') {
-                    const id = item.id;
-                    const updates = [];
-                    const values = [];
-                    let idx = 1;
-
-                    item.changes.forEach(c => {
-                        updates.push(`${c.dbField} = $${idx}`);
-                        values.push(c.newValue);
-                        idx++;
-                    });
-
-                    values.push(id);
-                    const q = `
-                        UPDATE brands
-                        SET ${updates.join(', ')}, updated_at = NOW()
-                        WHERE id = $${idx}
-                    `;
-                    await client.query(q, values);
-                    updatedImported++;
-
-                    // Log each field change
-                    for (const c of item.changes) {
-                        await logActivity(username, 'Brand edited', 'Brand', id, item.name, c.dbField, c.oldValue, c.newValue);
-                    }
+            for (const item of chunk) {
+                const d = item.data || {};
+                const rowPlaceholders = [];
+                for (const col of AGENCY_COLUMNS) {
+                    rowPlaceholders.push(`$${paramIdx++}`);
+                    const val = d[col];
+                    values.push(val !== undefined && val !== null && val !== '' ? String(val).trim() : (col === 'status' ? 'NO_DATA' : null));
                 }
+                valuePlaceholders.push(`(${rowPlaceholders.join(', ')})`);
             }
-        } else if (type === 'influencers') {
-            for (const item of validRows) {
-                if (item.action === 'INSERT') {
-                    const columns = Object.keys(item.data);
-                    const values = Object.values(item.data);
-                    const placeholders = columns.map((_, i) => `$${i + 1}`);
 
-                    const q = `
-                        INSERT INTO influencers (${columns.join(', ')})
-                        VALUES (${placeholders.join(', ')})
-                        RETURNING id
-                    `;
-                    const res = await client.query(q, values);
-                    newImported++;
-
-                    // Log influencer creation
-                    await logActivity(username, 'Influencer added', 'Influencer', res.rows[0].id, item.name);
-                } else if (item.action === 'UPDATE') {
-                    const id = item.id;
-                    const updates = [];
-                    const values = [];
-                    let idx = 1;
-
-                    item.changes.forEach(c => {
-                        updates.push(`${c.dbField} = $${idx}`);
-                        values.push(c.newValue === '' ? null : c.newValue);
-                        idx++;
+            const query = `
+                INSERT INTO agencies (${AGENCY_COLUMNS.join(', ')})
+                VALUES ${valuePlaceholders.join(', ')}
+            `;
+            await client.query(query, values);
+            await client.query('COMMIT');
+            newImported += chunk.length;
+        } catch (batchErr) {
+            await client.query('ROLLBACK');
+            console.error(`Agency batch insert chunk [${i}..${i + chunk.length}] failed, trying row-by-row:`, batchErr.message);
+            // Fallback row-by-row
+            for (const item of chunk) {
+                try {
+                    const d = item.data || {};
+                    const values = AGENCY_COLUMNS.map(col => {
+                        const val = d[col];
+                        return val !== undefined && val !== null && val !== '' ? String(val).trim() : (col === 'status' ? 'NO_DATA' : null);
                     });
-
-                    values.push(id);
-                    const q = `
-                        UPDATE influencers
-                        SET ${updates.join(', ')}, updated_at = NOW()
-                        WHERE id = $${idx}
-                    `;
-                    await client.query(q, values);
-                    updatedImported++;
-
-                    // Log each field change
-                    for (const c of item.changes) {
-                        await logActivity(username, 'Influencer edited', 'Influencer', id, item.name, c.dbField, c.oldValue, c.newValue);
-                    }
-                }
-            }
-        } else if (type === 'agencies') {
-            for (const item of validRows) {
-                if (item.action === 'INSERT') {
-                    const columns = Object.keys(item.data);
-                    const values = Object.values(item.data);
-                    const placeholders = columns.map((_, i) => `$${i + 1}`);
-
-                    const q = `
-                        INSERT INTO agencies (${columns.join(', ')})
-                        VALUES (${placeholders.join(', ')})
-                        RETURNING id
-                    `;
-                    const res = await client.query(q, values);
+                    const placeholders = AGENCY_COLUMNS.map((_, idx) => `$${idx + 1}`);
+                    await client.query(`INSERT INTO agencies (${AGENCY_COLUMNS.join(', ')}) VALUES (${placeholders.join(', ')})`, values);
                     newImported++;
-
-                    // Log agency creation
-                    await logActivity(username, 'Agency added', 'Agency', res.rows[0].id, item.name);
-                } else if (item.action === 'UPDATE') {
-                    const id = item.id;
-                    const updates = [];
-                    const values = [];
-                    let idx = 1;
-
-                    item.changes.forEach(c => {
-                        updates.push(`${c.dbField} = $${idx}`);
-                        values.push(c.newValue === '' ? null : c.newValue);
-                        idx++;
-                    });
-
-                    values.push(id);
-                    const q = `
-                        UPDATE agencies
-                        SET ${updates.join(', ')}, updated_at = NOW()
-                        WHERE id = $${idx}
-                    `;
-                    await client.query(q, values);
-                    updatedImported++;
-
-                    // Log each field change
-                    for (const c of item.changes) {
-                        await logActivity(username, 'Agency edited', 'Agency', id, item.name, c.dbField, c.oldValue, c.newValue);
-                    }
+                } catch (rowErr) {
+                    console.error(`Row insert failed for agency "${item.name}":`, rowErr.message);
+                    failedImported++;
                 }
             }
         }
+    }
 
-        await client.query('COMMIT');
-        return { success: true, newImported, updatedImported };
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('Rollback import transaction due to error:', err);
-        throw err;
+    // Batch Updates (Chunk size: 200)
+    const updateBatchSize = 200;
+    for (let i = 0; i < updates.length; i += updateBatchSize) {
+        const chunk = updates.slice(i, i + updateBatchSize);
+        try {
+            await client.query('BEGIN');
+            const values = [];
+            const valueTuples = [];
+            let paramIdx = 1;
+
+            for (const item of chunk) {
+                const id = item.id;
+                const d = item.data || {};
+                const tupleParams = [`$${paramIdx++}::integer`];
+                values.push(id);
+
+                for (const col of AGENCY_COLUMNS) {
+                    tupleParams.push(`$${paramIdx++}::text`);
+                    const val = d[col];
+                    values.push(val !== undefined && val !== null && val !== '' ? String(val).trim() : null);
+                }
+                valueTuples.push(`(${tupleParams.join(', ')})`);
+            }
+
+            const setClauses = AGENCY_COLUMNS.map(col => `${col} = v.${col}`).join(', ');
+
+            const query = `
+                UPDATE agencies AS a
+                SET ${setClauses}, updated_at = NOW()
+                FROM (VALUES ${valueTuples.join(', ')}) AS v(id, ${AGENCY_COLUMNS.join(', ')})
+                WHERE a.id = v.id
+            `;
+
+            await client.query(query, values);
+            await client.query('COMMIT');
+            updatedImported += chunk.length;
+        } catch (batchErr) {
+            await client.query('ROLLBACK');
+            console.error(`Agency batch update chunk [${i}..${i + chunk.length}] failed, trying row-by-row:`, batchErr.message);
+            // Fallback row-by-row
+            for (const item of chunk) {
+                try {
+                    const id = item.id;
+                    const d = item.data || {};
+                    const updateCols = [];
+                    const values = [];
+                    let idx = 1;
+
+                    for (const col of AGENCY_COLUMNS) {
+                        if (d[col] !== undefined) {
+                            updateCols.push(`${col} = $${idx++}`);
+                            const val = d[col];
+                            values.push(val !== undefined && val !== null && val !== '' ? String(val).trim() : null);
+                        }
+                    }
+
+                    if (updateCols.length > 0) {
+                        values.push(id);
+                        await client.query(`UPDATE agencies SET ${updateCols.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, values);
+                        updatedImported++;
+                    }
+                } catch (rowErr) {
+                    console.error(`Row update failed for agency ID ${item.id}:`, rowErr.message);
+                    failedImported++;
+                }
+            }
+        }
+    }
+
+    return { newImported, updatedImported, failedImported };
+}
+
+async function commitBrands(client, inserts, updates) {
+    let newImported = 0;
+    let updatedImported = 0;
+    let failedImported = 0;
+
+    const insertBatchSize = 200;
+    for (let i = 0; i < inserts.length; i += insertBatchSize) {
+        const chunk = inserts.slice(i, i + insertBatchSize);
+        try {
+            await client.query('BEGIN');
+            const values = [];
+            const valuePlaceholders = [];
+            let paramIdx = 1;
+
+            for (const item of chunk) {
+                const d = item.data || {};
+                const rowPlaceholders = [];
+                for (const col of BRAND_COLUMNS) {
+                    rowPlaceholders.push(`$${paramIdx++}`);
+                    values.push(d[col] !== undefined ? d[col] : null);
+                }
+                valuePlaceholders.push(`(${rowPlaceholders.join(', ')})`);
+            }
+
+            const query = `
+                INSERT INTO brands (${BRAND_COLUMNS.join(', ')})
+                VALUES ${valuePlaceholders.join(', ')}
+            `;
+            await client.query(query, values);
+            await client.query('COMMIT');
+            newImported += chunk.length;
+        } catch (batchErr) {
+            await client.query('ROLLBACK');
+            console.error(`Brands batch insert failed, falling back to row-by-row:`, batchErr.message);
+            for (const item of chunk) {
+                try {
+                    const d = item.data || {};
+                    const values = BRAND_COLUMNS.map(col => d[col] !== undefined ? d[col] : null);
+                    const placeholders = BRAND_COLUMNS.map((_, idx) => `$${idx + 1}`);
+                    await client.query(`INSERT INTO brands (${BRAND_COLUMNS.join(', ')}) VALUES (${placeholders.join(', ')})`, values);
+                    newImported++;
+                } catch (rowErr) {
+                    console.error(`Row insert failed for brand "${item.name}":`, rowErr.message);
+                    failedImported++;
+                }
+            }
+        }
+    }
+
+    for (const item of updates) {
+        try {
+            const id = item.id;
+            const updateCols = [];
+            const values = [];
+            let idx = 1;
+
+            for (const col of BRAND_COLUMNS) {
+                if (item.data && item.data[col] !== undefined) {
+                    updateCols.push(`${col} = $${idx++}`);
+                    values.push(item.data[col]);
+                }
+            }
+
+            if (updateCols.length > 0) {
+                values.push(id);
+                await client.query(`UPDATE brands SET ${updateCols.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, values);
+                updatedImported++;
+            }
+        } catch (err) {
+            console.error(`Row update failed for brand ID ${item.id}:`, err.message);
+            failedImported++;
+        }
+    }
+
+    return { newImported, updatedImported, failedImported };
+}
+
+async function commitInfluencers(client, inserts, updates) {
+    let newImported = 0;
+    let updatedImported = 0;
+    let failedImported = 0;
+
+    const insertBatchSize = 200;
+    for (let i = 0; i < inserts.length; i += insertBatchSize) {
+        const chunk = inserts.slice(i, i + insertBatchSize);
+        try {
+            await client.query('BEGIN');
+            const values = [];
+            const valuePlaceholders = [];
+            let paramIdx = 1;
+
+            for (const item of chunk) {
+                const d = item.data || {};
+                const rowPlaceholders = [];
+                for (const col of INFLUENCER_COLUMNS) {
+                    rowPlaceholders.push(`$${paramIdx++}`);
+                    values.push(d[col] !== undefined ? d[col] : null);
+                }
+                valuePlaceholders.push(`(${rowPlaceholders.join(', ')})`);
+            }
+
+            const query = `
+                INSERT INTO influencers (${INFLUENCER_COLUMNS.join(', ')})
+                VALUES ${valuePlaceholders.join(', ')}
+            `;
+            await client.query(query, values);
+            await client.query('COMMIT');
+            newImported += chunk.length;
+        } catch (batchErr) {
+            await client.query('ROLLBACK');
+            console.error(`Influencer batch insert failed, falling back to row-by-row:`, batchErr.message);
+            for (const item of chunk) {
+                try {
+                    const d = item.data || {};
+                    const values = INFLUENCER_COLUMNS.map(col => d[col] !== undefined ? d[col] : null);
+                    const placeholders = INFLUENCER_COLUMNS.map((_, idx) => `$${idx + 1}`);
+                    await client.query(`INSERT INTO influencers (${INFLUENCER_COLUMNS.join(', ')}) VALUES (${placeholders.join(', ')})`, values);
+                    newImported++;
+                } catch (rowErr) {
+                    console.error(`Row insert failed for influencer "${item.name}":`, rowErr.message);
+                    failedImported++;
+                }
+            }
+        }
+    }
+
+    for (const item of updates) {
+        try {
+            const id = item.id;
+            const updateCols = [];
+            const values = [];
+            let idx = 1;
+
+            for (const col of INFLUENCER_COLUMNS) {
+                if (item.data && item.data[col] !== undefined) {
+                    updateCols.push(`${col} = $${idx++}`);
+                    values.push(item.data[col]);
+                }
+            }
+
+            if (updateCols.length > 0) {
+                values.push(id);
+                await client.query(`UPDATE influencers SET ${updateCols.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, values);
+                updatedImported++;
+            }
+        } catch (err) {
+            console.error(`Row update failed for influencer ID ${item.id}:`, err.message);
+            failedImported++;
+        }
+    }
+
+    return { newImported, updatedImported, failedImported };
+}
+
+// Commit the validated rows to database
+async function commitImport(validRows, type, username, filename) {
+    const client = await pool.connect();
+    try {
+        const inserts = validRows.filter(r => r.action === 'INSERT');
+        const updates = validRows.filter(r => r.action === 'UPDATE');
+
+        let result = { newImported: 0, updatedImported: 0, failedImported: 0 };
+
+        if (type === 'agencies') {
+            result = await commitAgencies(client, inserts, updates);
+        } else if (type === 'brands') {
+            result = await commitBrands(client, inserts, updates);
+        } else if (type === 'influencers') {
+            result = await commitInfluencers(client, inserts, updates);
+        }
+
+        if (username) {
+            const summaryStr = `New: ${result.newImported}, Updated: ${result.updatedImported}, Failed: ${result.failedImported || 0}`;
+            const recordType = type === 'agencies' ? 'Agency' : (type === 'brands' ? 'Brand' : 'Influencer');
+            await logActivity(username, 'Excel imported', recordType, 0, filename || 'import.xlsx', null, null, summaryStr);
+        }
+
+        return {
+            success: true,
+            newImported: result.newImported,
+            updatedImported: result.updatedImported,
+            failedImported: result.failedImported
+        };
     } finally {
         client.release();
     }

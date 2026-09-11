@@ -23,31 +23,36 @@ async function getPreview(req, res) {
 }
 
 async function commitImport(req, res) {
-    const { validRows, type, filename, summary } = req.body;
-    const username = req.session.user.username;
+    const { validRows, type, filename, summary = {} } = req.body;
+    const username = req.session && req.session.user ? req.session.user.username : 'system';
 
     if (!validRows || !Array.isArray(validRows)) {
         return res.status(400).json({ error: 'Valid rows payload is required' });
     }
 
+    const validTypes = ['brands', 'influencers', 'agencies'];
     if (!validTypes.includes(type)) {
         return res.status(400).json({ error: 'Valid import type is required' });
     }
 
     try {
         const result = await excelImportService.commitImport(validRows, type, username, filename);
-        
-        // Log global import activity
-        const summaryStr = `New: ${summary.newCount}, Updated: ${summary.updatedCount}, Unchanged: ${summary.unchangedCount}, Problems: ${summary.problemCount}`;
-        await logActivity(username, 'Excel imported', 'Import', 0, filename || 'import.xlsx', null, null, summaryStr);
+
+        let message = `Successfully processed import session. ${result.newImported} records added, ${result.updatedImported} records updated.`;
+        if (result.failedImported > 0) {
+            message += ` (${result.failedImported} records failed)`;
+        }
 
         return res.json({
             success: true,
-            message: `Successfully processed import session. ${result.newImported} records added, ${result.updatedImported} records updated.`
+            newImported: result.newImported,
+            updatedImported: result.updatedImported,
+            failedImported: result.failedImported || 0,
+            message
         });
     } catch (err) {
         console.error('Error committing spreadsheet import:', err);
-        return res.status(500).json({ error: 'Database transaction failed during commit' });
+        return res.status(500).json({ error: 'Database transaction failed during commit: ' + (err.message || 'Unknown error') });
     }
 }
 
