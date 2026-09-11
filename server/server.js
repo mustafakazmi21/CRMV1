@@ -13,6 +13,7 @@ const importRoutes = require('./routes/imports');
 const userRoutes = require('./routes/users');
 const agencyRoutes = require('./routes/agencies');
 const instagramRoutes = require('./routes/instagram');
+const outreachRoutes = require('./routes/outreach');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -56,6 +57,7 @@ app.use('/api/import', importRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/agencies', agencyRoutes);
 app.use('/api/instagram', instagramRoutes);
+app.use('/api/outreach', outreachRoutes);
 
 // Catch-all route to serve the SPA
 app.get('*', (req, res) => {

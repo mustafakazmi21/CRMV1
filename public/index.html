@@ -41,6 +41,9 @@
                 <ul>
                     <li><a href="#" class="nav-link active" data-target="dashboard-view">Dashboard</a></li>
                     <li><a href="#" class="nav-link" data-target="leads-view">Leads</a></li>
+                    <li id="nav-outreach-item">
+                        <a href="#" class="nav-link" data-target="outreach-view">Reached Out</a>
+                    </li>
                     <li><a href="#" class="nav-link" data-target="brands-view">Brands</a></li>
                     <li><a href="#" class="nav-link" data-target="influencers-view">Influencers</a></li>
                     <li id="nav-activity-log-item" class="hidden">
@@ -293,6 +296,122 @@
                     <div class="pagination-buttons">
                         <button class="btn pagination-btn" id="leads-prev-btn" disabled>&larr; Previous</button>
                         <button class="btn pagination-btn" id="leads-next-btn" disabled>Next &rarr;</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- REACHED OUT / OUTREACH PANEL -->
+            <section id="outreach-view" class="view-panel hidden">
+                <header class="panel-header">
+                    <div>
+                        <h1>Reached Out</h1>
+                        <p style="color: #718096; font-size: 0.9rem; margin-top: 0.25rem;">
+                            Track all Brands, Influencers, and Agencies that have been engaged, assigned, or have outreach history.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem; align-items: center;">
+                        <span class="user-role-badge" id="outreach-total-badge" style="background-color: var(--primary-color); color: white; padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                            0 Total Engaged
+                        </span>
+                    </div>
+                </header>
+
+                <!-- TABS: All, Brands, Influencers, Agencies -->
+                <div class="modal-tabs" style="background: none; padding: 0; margin-bottom: 1rem; border-bottom: 2px solid var(--border-color);" id="outreach-tabs-container">
+                    <button class="modal-tab-btn active" id="tab-outreach-all" data-type="all">All Reached Out</button>
+                    <button class="modal-tab-btn" id="tab-outreach-brands" data-type="Brand">Brands Reached Out</button>
+                    <button class="modal-tab-btn" id="tab-outreach-influencers" data-type="Influencer">Influencers Reached Out</button>
+                    <button class="modal-tab-btn" id="tab-outreach-agencies" data-type="Agency">Agencies Reached Out</button>
+                </div>
+
+                <!-- MULTI-PARAMETER FILTER TOOLBAR -->
+                <div class="controls-bar" id="outreach-controls-bar" style="flex-wrap: wrap; gap: 0.75rem; background: var(--surface-color); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+                    
+                    <!-- Search / Location -->
+                    <div class="search-box-wrapper" style="flex: 2; min-width: 240px;">
+                        <input type="text" id="outreach-search-input" placeholder="Search by name, handle, location, or notes...">
+                    </div>
+
+                    <div class="filter-wrapper" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; flex: 3;">
+                        <!-- Type Filter -->
+                        <select id="outreach-type-filter" style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="all">Type: All</option>
+                            <option value="Brand">Brand</option>
+                            <option value="Influencer">Influencer</option>
+                            <option value="Agency">Agency</option>
+                        </select>
+
+                        <!-- Employee Filter -->
+                        <select id="outreach-employee-filter" style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="">All Employees</option>
+                            <!-- Dynamically populated -->
+                        </select>
+
+                        <!-- Date Reached Out Presets -->
+                        <select id="outreach-date-preset-filter" style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="">Date: All Time</option>
+                            <option value="today">Today</option>
+                            <option value="this_week">This Week</option>
+                            <option value="this_month">This Month</option>
+                            <option value="custom">Custom Date Range</option>
+                        </select>
+
+                        <!-- Custom Date Range Inputs -->
+                        <div id="outreach-custom-date-container" class="hidden" style="display: flex; gap: 0.35rem; align-items: center;">
+                            <span style="font-size: 0.85rem; color: #718096;">From:</span>
+                            <input type="date" id="outreach-date-from" style="padding: 0.45rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem;">
+                            <span style="font-size: 0.85rem; color: #718096;">To:</span>
+                            <input type="date" id="outreach-date-to" style="padding: 0.45rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem;">
+                        </div>
+
+                        <!-- Lead Status Filter -->
+                        <select id="outreach-status-filter" style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="">All Statuses</option>
+                            <option value="Not Contacted">Not Contacted</option>
+                            <option value="Reached Out">Reached Out</option>
+                            <option value="Responded">Responded</option>
+                            <option value="Demo Scheduled">Demo Scheduled</option>
+                            <option value="Demo Done">Demo Done</option>
+                            <option value="Follow Up">Follow Up</option>
+                            <option value="Closed Won">Closed Won</option>
+                            <option value="Closed Lost">Closed Lost</option>
+                        </select>
+
+                        <!-- Reset Filters Button -->
+                        <button type="button" id="outreach-reset-filters-btn" class="btn secondary-btn" style="padding: 0.5rem 0.85rem; border-radius: 4px; display: flex; align-items: center; gap: 0.25rem;">
+                            <span>Reset Filters</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- OUTREACH TABLE -->
+                <div class="table-container">
+                    <table class="spreadsheet-table" id="outreach-table">
+                        <thead>
+                            <tr>
+                                <th>Profile / Company</th>
+                                <th>Type</th>
+                                <th>Social / Web Link</th>
+                                <th>Assigned To</th>
+                                <th>Lead Status</th>
+                                <th>Outreach Status & Notes</th>
+                                <th>Last Outreach Date</th>
+                                <th>Next Follow-Up</th>
+                                <th style="text-align: center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="outreach-table-body">
+                            <!-- Populated dynamically by outreach.js -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- PAGINATION CONTROLS -->
+                <div class="pagination-bar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding: 0.5rem 0;">
+                    <span id="outreach-pagination-info" style="color: #718096; font-size: 0.9rem;">Showing 0 of 0 records</span>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="outreach-prev-btn" class="btn secondary-btn" disabled>&larr; Previous</button>
+                        <button id="outreach-next-btn" class="btn secondary-btn" disabled>Next &rarr;</button>
                     </div>
                 </div>
             </section>
@@ -1469,5 +1588,6 @@
     <script src="/js/imports.js"></script>
     <script src="/js/team.js"></script>
     <script src="/js/instagram.js"></script>
+    <script src="/js/outreach.js"></script>
 </body>
 </html>

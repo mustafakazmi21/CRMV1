@@ -192,6 +192,8 @@ function switchView(viewId) {
         loadInstagramFollowUps();
     } else if (viewId === 'agencies-view') {
         loadAgencies();
+    } else if (viewId === 'outreach-view') {
+        loadOutreach();
     }
 }
 
