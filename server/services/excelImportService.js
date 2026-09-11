@@ -41,36 +41,127 @@ function normalizeInstaHandle(val) {
     return s.replace(/^@/, '').trim();
 }
 
+// Normalize Instagram URLs for canonical matching
+function normalizeInstagramUrl(url) {
+    if (!url) return '';
+    let u = String(url).trim();
+    const hyperlinkMatch = u.match(/HYPERLINK\("([^"]+)"/i);
+    if (hyperlinkMatch) {
+        u = hyperlinkMatch[1];
+    }
+    u = u.toLowerCase().trim();
+    u = u.replace(/^https?:\/\//, '').replace(/^www\./, '');
+    u = u.split('?')[0].split('#')[0];
+    u = u.replace(/\/+$/, '');
+    
+    if (u.includes('instagram.com/')) {
+        let handle = u.split('instagram.com/')[1] || '';
+        handle = handle.replace(/\/+$/, '').trim();
+        return `instagram.com/${handle}`;
+    }
+    const handle = u.replace(/^@/, '').trim();
+    if (handle && !handle.includes('/')) {
+        return `instagram.com/${handle}`;
+    }
+    return u;
+}
+
+function extractInstagramHandle(url) {
+    const norm = normalizeInstagramUrl(url);
+    if (norm.startsWith('instagram.com/')) {
+        return norm.replace('instagram.com/', '').trim();
+    }
+    return '';
+}
+
+function formatDbValue(col, val) {
+    if (val === undefined || val === null || val === '') {
+        return null;
+    }
+    if (['followers', 'following', 'posts'].includes(col)) {
+        if (typeof val === 'number') return Math.round(val);
+        const cleaned = String(val).replace(/,/g, '').trim();
+        const num = parseInt(cleaned, 10);
+        return isNaN(num) ? null : num;
+    }
+    if (['first_seen', 'status_timestamp'].includes(col)) {
+        if (typeof val === 'number') {
+            const date = new Date((val - (25567 + 2)) * 86400 * 1000);
+            return isNaN(date.getTime()) ? null : date.toISOString();
+        }
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? null : d.toISOString();
+    }
+    return String(val).trim();
+}
+
 // Mapping from Spreadsheet headers to DB columns
 const brandMapping = {
-    'Brand': 'brand_name',
-    'Founded Year': 'founded_year',
-    'Category': 'category',
-    'Brand Focus': 'brand_focus',
-    'Founder names': 'founder_names',
-    'Revenue': 'revenue',
-    'Revenue Year': 'revenue_year',
-    'Last funding amount (cr) & (M)': 'last_funding_amount',
-    'Last funding data': 'last_funding_data',
-    'Last funding date': 'last_funding_date',
-    'Headquarter': 'headquarter',
-    'Main geography outreach': 'main_geography_outreach',
-    'LinkedIn': 'linkedin',
-    'How many employees?': 'how_many_employees',
-    'Marketing Head': 'marketing_head',
-    'Marketing Mail Id': 'marketing_mail_id',
-    'Sales Head': 'sales_head',
-    'Sales Head mail': 'sales_head_mail',
-    'Content Marketing Head': 'content_marketing_head',
-    'Content Marketing Head mail id': 'content_marketing_head_mail_id',
-    'Company Phone': 'company_phone',
-    'Company URL': 'company_url',
-    'Facebook': 'facebook',
-    'Instagram': 'instagram',
-    'YouTube': 'youtube',
-    'Twitter': 'twitter',
-    'Main influencer marketing platform (Facebook / YouTube / Instagram / X)': 'main_influencer_platform',
-    'Web Traffic ': 'web_traffic'
+    'username': 'username',
+    'Username': 'username',
+    
+    'instagramUrl': 'instagram_url',
+    'instagram_url': 'instagram_url',
+    'Instagram URL': 'instagram_url',
+    'Instagram': 'instagram_url',
+    'Instagram link': 'instagram_url',
+    
+    'displayName': 'display_name',
+    'display_name': 'display_name',
+    'Display Name': 'display_name',
+    'Name': 'display_name',
+    
+    'followers': 'followers',
+    'Followers': 'followers',
+    
+    'followersFormatted': 'followers_formatted',
+    'followers_formatted': 'followers_formatted',
+    'Followers Formatted': 'followers_formatted',
+    
+    'following': 'following',
+    'Following': 'following',
+    
+    'followingFormatted': 'following_formatted',
+    'following_formatted': 'following_formatted',
+    'Following Formatted': 'following_formatted',
+    
+    'posts': 'posts',
+    'Posts': 'posts',
+    
+    'postsFormatted': 'posts_formatted',
+    'posts_formatted': 'posts_formatted',
+    'Posts Formatted': 'posts_formatted',
+    
+    'snippet': 'snippet',
+    'Snippet': 'snippet',
+    
+    'sourceQuery': 'source_query',
+    'source_query': 'source_query',
+    'Source Query': 'source_query',
+    
+    'sourceUrl': 'source_url',
+    'source_url': 'source_url',
+    'Source URL': 'source_url',
+    
+    'firstSeen': 'first_seen',
+    'first_seen': 'first_seen',
+    'First Seen': 'first_seen',
+    
+    'Script': 'script',
+    'script': 'script',
+    
+    'status': 'status',
+    'Status': 'status',
+    
+    'Message Recived from barnd': 'message_received',
+    'Message Received from brand': 'message_received',
+    'Message Received': 'message_received',
+    'message_received': 'message_received',
+    
+    'status-timetamp': 'status_timestamp',
+    'status-timestamp': 'status_timestamp',
+    'status_timestamp': 'status_timestamp',
+    'Status Timestamp': 'status_timestamp'
 };
 
 const influencerMapping = {
@@ -102,41 +193,63 @@ async function analyzeImport(buffer, type) {
         const dbRes = await pool.query('SELECT * FROM brands WHERE is_archived = false ORDER BY id ASC');
         const dbBrands = dbRes.rows;
 
-        // Build lookups
-        const nameLookup = {};
-        const urlLookup = {};
-        const linkedinLookup = {};
+        // Build lookups: primary by normalized instagram_url, secondary by username
+        const instaLookup = {};
+        const usernameLookup = {};
         dbBrands.forEach(b => {
-            if (b.brand_name) nameLookup[b.brand_name.toLowerCase().trim()] = b;
-            if (b.company_url) urlLookup[normalizeUrl(b.company_url)] = b;
-            if (b.linkedin) linkedinLookup[normalizeUrl(b.linkedin)] = b;
+            if (b.instagram_url) {
+                const norm = normalizeInstagramUrl(b.instagram_url);
+                if (norm) instaLookup[norm] = b;
+            }
+            if (b.username) {
+                const u = String(b.username).replace(/^@/, '').toLowerCase().trim();
+                if (u) usernameLookup[u] = b;
+            }
         });
 
         rows.forEach((row, idx) => {
             const rowNum = idx + 2; // header is row 1
-            const name = row['Brand'] ? String(row['Brand']).trim() : '';
+            
+            // Extract row values based on brandMapping
+            let rawInsta = '';
+            let rawUsername = '';
+            let rawDisplayName = '';
 
-            if (!name) {
+            for (const [key, val] of Object.entries(row)) {
+                const cleanKey = key.trim();
+                const col = brandMapping[cleanKey];
+                if (col === 'instagram_url' && val) rawInsta = cleanExcelVal(val);
+                if (col === 'username' && val) rawUsername = cleanExcelVal(val);
+                if (col === 'display_name' && val) rawDisplayName = cleanExcelVal(val);
+            }
+
+            // Derive username from Instagram URL if missing
+            if (!rawUsername && rawInsta) {
+                rawUsername = extractInstagramHandle(rawInsta);
+            }
+            // Construct Instagram URL from username if missing
+            if (!rawInsta && rawUsername) {
+                rawInsta = `https://instagram.com/${rawUsername.replace(/^@/, '').trim()}`;
+            }
+
+            const normInsta = normalizeInstagramUrl(rawInsta);
+            const cleanUsername = rawUsername ? rawUsername.replace(/^@/, '').toLowerCase().trim() : '';
+
+            if (!normInsta && !cleanUsername) {
                 summary.problemCount++;
-                problems.push({ rowNumber: rowNum, name: 'Unknown', error: 'Missing Brand name' });
+                problems.push({ rowNumber: rowNum, name: 'Unknown', error: 'Missing both Instagram URL and Username' });
                 return;
             }
 
-            // Find match
+            // Find match: Primary by normalized Instagram URL, fallback to username
             let matchedRecord = null;
-            const companyUrl = row['Company URL'] ? String(row['Company URL']).trim() : '';
-            const linkedinUrl = row['LinkedIn'] ? String(row['LinkedIn']).trim() : '';
+            if (normInsta && instaLookup[normInsta]) {
+                matchedRecord = instaLookup[normInsta];
+            } else if (cleanUsername && usernameLookup[cleanUsername]) {
+                matchedRecord = usernameLookup[cleanUsername];
+            }
 
-            // Match by name first since company URLs can be generic forms
-            if (name) {
-                matchedRecord = nameLookup[name.toLowerCase()];
-            }
-            if (!matchedRecord && companyUrl) {
-                matchedRecord = urlLookup[normalizeUrl(companyUrl)];
-            }
-            if (!matchedRecord && linkedinUrl) {
-                matchedRecord = linkedinLookup[normalizeUrl(linkedinUrl)];
-            }
+            const recordDisplayName = rawDisplayName || rawUsername || normInsta;
 
             if (matchedRecord) {
                 // Record matches, compare fields
@@ -146,19 +259,28 @@ async function analyzeImport(buffer, type) {
                 for (const [sheetKey, dbCol] of Object.entries(brandMapping)) {
                     if (row[sheetKey] !== undefined) {
                         let excelVal = cleanExcelVal(row[sheetKey]);
-                        let crmVal = matchedRecord[dbCol] !== null ? String(matchedRecord[dbCol]).trim() : '';
-
-                        // If Excel value is blank, do NOT overwrite CRM value
                         if (excelVal === '') continue;
 
-                        if (excelVal !== crmVal) {
+                        let crmVal = matchedRecord[dbCol];
+                        if (['first_seen', 'status_timestamp'].includes(dbCol) && crmVal) {
+                            try {
+                                crmVal = new Date(crmVal).toISOString();
+                            } catch (e) {}
+                        }
+                        crmVal = crmVal !== null && crmVal !== undefined ? String(crmVal).trim() : '';
+
+                        // Format excel value for comparison
+                        const formattedExcelVal = formatDbValue(dbCol, excelVal);
+                        const compareExcelStr = formattedExcelVal !== null ? String(formattedExcelVal).trim() : '';
+
+                        if (compareExcelStr !== '' && compareExcelStr !== crmVal) {
                             changes.push({
                                 field: sheetKey,
                                 dbField: dbCol,
                                 oldValue: crmVal,
-                                newValue: excelVal
+                                newValue: formattedExcelVal
                             });
-                            updatedRowData[dbCol] = excelVal;
+                            updatedRowData[dbCol] = formattedExcelVal;
                         }
                     }
                 }
@@ -167,13 +289,13 @@ async function analyzeImport(buffer, type) {
                     summary.updatedCount++;
                     proposedUpdates.push({
                         id: matchedRecord.id,
-                        name: matchedRecord.brand_name,
+                        name: matchedRecord.display_name || matchedRecord.username || recordDisplayName,
                         changes
                     });
                     validRowsToImport.push({
                         action: 'UPDATE',
                         id: matchedRecord.id,
-                        name: matchedRecord.brand_name,
+                        name: matchedRecord.display_name || matchedRecord.username || recordDisplayName,
                         data: updatedRowData,
                         changes
                     });
@@ -185,11 +307,26 @@ async function analyzeImport(buffer, type) {
                 summary.newCount++;
                 const newRowData = {};
                 for (const [sheetKey, dbCol] of Object.entries(brandMapping)) {
-                    newRowData[dbCol] = cleanExcelVal(row[sheetKey]);
+                    if (row[sheetKey] !== undefined) {
+                        const rawVal = cleanExcelVal(row[sheetKey]);
+                        newRowData[dbCol] = formatDbValue(dbCol, rawVal);
+                    }
                 }
+
+                // Ensure username and instagram_url are set
+                if (!newRowData.username && cleanUsername) {
+                    newRowData.username = cleanUsername;
+                }
+                if (!newRowData.instagram_url && rawInsta) {
+                    newRowData.instagram_url = rawInsta;
+                }
+                if (!newRowData.status) {
+                    newRowData.status = 'New';
+                }
+
                 validRowsToImport.push({
                     action: 'INSERT',
-                    name: newRowData.brand_name,
+                    name: newRowData.display_name || newRowData.username || recordDisplayName,
                     data: newRowData
                 });
             }

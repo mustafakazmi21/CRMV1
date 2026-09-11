@@ -302,11 +302,18 @@
 
                 <div class="controls-bar" style="flex-wrap: wrap;">
                     <div class="search-box-wrapper" style="flex: 1; min-width: 250px;">
-                        <input type="text" id="brands-search-input" placeholder="Search by name, category, focus, headquarters...">
+                        <input type="text" id="brands-search-input" placeholder="Search by username, display name, status, snippet...">
                     </div>
                     <div class="filter-wrapper" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                        <input type="text" id="brands-category-filter" placeholder="Category..." style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
-                        <input type="text" id="brands-location-filter" placeholder="Location..." style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
+                        <select id="brands-status-filter" style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="">All Statuses</option>
+                            <option value="New">New</option>
+                            <option value="Message Sent">Message Sent</option>
+                            <option value="Replied">Replied</option>
+                            <option value="In Discussion">In Discussion</option>
+                            <option value="Deal Closed">Deal Closed</option>
+                            <option value="Not Interested">Not Interested</option>
+                        </select>
                         <select id="brands-agency-filter" style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px;">
                             <option value="">All Agencies</option>
                         </select>
@@ -320,13 +327,14 @@
                     <table class="spreadsheet-table" id="brands-table">
                         <thead>
                             <tr>
-                                <th>Brand Name</th>
-                                <th>Category</th>
-                                <th>Headquarters</th>
-                                <th>Revenue</th>
-                                <th>Employees</th>
-                                <th>Marketing Head</th>
-                                <th>Website</th>
+                                <th>Username</th>
+                                <th>Display Name</th>
+                                <th>Instagram</th>
+                                <th>Followers</th>
+                                <th>Posts</th>
+                                <th>Status</th>
+                                <th>Message Received</th>
+                                <th>Status Timestamp</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -600,117 +608,80 @@
             </header>
             <form id="add-brand-form" class="modal-form">
                 <div class="form-grid">
-                    <div class="form-group span-2">
-                        <label>Brand Name *</label>
-                        <input type="text" name="brand_name" required>
+                    <div class="form-group">
+                        <label>Username *</label>
+                        <input type="text" name="username" placeholder="e.g. @brandname" required>
                     </div>
                     <div class="form-group">
-                        <label>Founded Year</label>
-                        <input type="text" name="founded_year">
-                    </div>
-                    <div class="form-group">
-                        <label>Category</label>
-                        <input type="text" name="category" placeholder="e.g. D2C, Fashion">
+                        <label>Display Name</label>
+                        <input type="text" name="display_name" placeholder="Brand Display Name">
                     </div>
                     <div class="form-group span-2">
-                        <label>Brand Focus / Description</label>
-                        <textarea name="brand_focus" rows="3"></textarea>
+                        <label>Instagram URL *</label>
+                        <input type="text" name="instagram_url" placeholder="https://instagram.com/brandname">
                     </div>
                     <div class="form-group">
-                        <label>Founder Names</label>
-                        <input type="text" name="founder_names">
+                        <label>Followers</label>
+                        <input type="number" name="followers" placeholder="e.g. 150000">
                     </div>
                     <div class="form-group">
-                        <label>Revenue</label>
-                        <input type="text" name="revenue">
+                        <label>Followers Formatted</label>
+                        <input type="text" name="followers_formatted" placeholder="e.g. 150K">
                     </div>
                     <div class="form-group">
-                        <label>Revenue Year</label>
-                        <input type="text" name="revenue_year">
+                        <label>Following</label>
+                        <input type="number" name="following" placeholder="e.g. 1200">
                     </div>
                     <div class="form-group">
-                        <label>Last Funding Amount</label>
-                        <input type="text" name="last_funding_amount">
+                        <label>Following Formatted</label>
+                        <input type="text" name="following_formatted" placeholder="e.g. 1.2K">
                     </div>
                     <div class="form-group">
-                        <label>Last Funding Stage</label>
-                        <input type="text" name="last_funding_data" placeholder="e.g. Seed, Growth">
+                        <label>Posts</label>
+                        <input type="number" name="posts" placeholder="e.g. 350">
                     </div>
                     <div class="form-group">
-                        <label>Last Funding Date</label>
-                        <input type="text" name="last_funding_date" placeholder="YYYY-MM-DD">
+                        <label>Posts Formatted</label>
+                        <input type="text" name="posts_formatted" placeholder="e.g. 350">
                     </div>
                     <div class="form-group">
-                        <label>Headquarters</label>
-                        <input type="text" name="headquarter">
+                        <label>Status</label>
+                        <select name="status">
+                            <option value="New" selected>New</option>
+                            <option value="Message Sent">Message Sent</option>
+                            <option value="Replied">Replied</option>
+                            <option value="In Discussion">In Discussion</option>
+                            <option value="Deal Closed">Deal Closed</option>
+                            <option value="Not Interested">Not Interested</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>Main Geography Outreach</label>
-                        <input type="text" name="main_geography_outreach">
+                        <label>Status Timestamp</label>
+                        <input type="datetime-local" name="status_timestamp">
                     </div>
                     <div class="form-group">
-                        <label>Company Website URL</label>
-                        <input type="text" name="company_url">
+                        <label>First Seen</label>
+                        <input type="datetime-local" name="first_seen">
                     </div>
                     <div class="form-group">
-                        <label>LinkedIn URL</label>
-                        <input type="text" name="linkedin">
+                        <label>Source Query</label>
+                        <input type="text" name="source_query" placeholder="e.g. fashion brands">
                     </div>
-                    <div class="form-group">
-                        <label>Employees Count</label>
-                        <input type="text" name="how_many_employees" placeholder="e.g. 11-50">
+                    <div class="form-group span-2">
+                        <label>Source URL</label>
+                        <input type="text" name="source_url" placeholder="https://...">
                     </div>
-                    <div class="form-group">
-                        <label>Marketing Head Name</label>
-                        <input type="text" name="marketing_head">
+                    <div class="form-group span-2">
+                        <label>Snippet</label>
+                        <textarea name="snippet" rows="2" placeholder="Profile bio / snippet"></textarea>
                     </div>
-                    <div class="form-group">
-                        <label>Marketing Head Email</label>
-                        <input type="email" name="marketing_mail_id">
+                    <div class="form-group span-2">
+                        <label>Script</label>
+                        <textarea name="script" rows="2" placeholder="Pitch / outreach script"></textarea>
                     </div>
-                    <div class="form-group">
-                        <label>Sales Head Name</label>
-                        <input type="text" name="sales_head">
-                    </div>
-                    <div class="form-group">
-                        <label>Sales Head Email</label>
-                        <input type="email" name="sales_head_mail">
-                    </div>
-                    <div class="form-group">
-                        <label>Content Marketing Head</label>
-                        <input type="text" name="content_marketing_head">
-                    </div>
-                    <div class="form-group">
-                        <label>Content Marketing Head Email</label>
-                        <input type="email" name="content_marketing_head_mail_id">
-                    </div>
-                    <div class="form-group">
-                        <label>Company Phone</label>
-                        <input type="text" name="company_phone">
-                    </div>
-                    <div class="form-group">
-                        <label>Facebook URL</label>
-                        <input type="text" name="facebook">
-                    </div>
-                    <div class="form-group">
-                        <label>Instagram URL</label>
-                        <input type="text" name="instagram">
-                    </div>
-                    <div class="form-group">
-                        <label>YouTube URL</label>
-                        <input type="text" name="youtube">
-                    </div>
-                    <div class="form-group">
-                        <label>Twitter URL</label>
-                        <input type="text" name="twitter">
-                    </div>
-                    <div class="form-group">
-                        <label>Main Influencer Platform</label>
-                        <input type="text" name="main_influencer_platform" placeholder="e.g. YouTube, Instagram">
-                    </div>
-                    <div class="form-group">
-                        <label>Web Traffic Info</label>
-                        <input type="text" name="web_traffic">
+                    <div class="form-group span-2">
+                        <label>Message Received from Brand</label>
+                        <textarea name="message_received" rows="2" placeholder="Message content received from brand"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -743,117 +714,80 @@
                 <form id="edit-brand-form" class="modal-form">
                     <input type="hidden" name="id">
                     <div class="form-grid">
-                        <div class="form-group span-2">
-                            <label>Brand Name *</label>
-                            <input type="text" name="brand_name" required>
+                        <div class="form-group">
+                            <label>Username *</label>
+                            <input type="text" name="username" required>
                         </div>
                         <div class="form-group">
-                            <label>Founded Year</label>
-                            <input type="text" name="founded_year">
-                        </div>
-                        <div class="form-group">
-                            <label>Category</label>
-                            <input type="text" name="category">
+                            <label>Display Name</label>
+                            <input type="text" name="display_name">
                         </div>
                         <div class="form-group span-2">
-                            <label>Brand Focus / Description</label>
-                            <textarea name="brand_focus" rows="3"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Founder Names</label>
-                            <input type="text" name="founder_names">
-                        </div>
-                        <div class="form-group">
-                            <label>Revenue</label>
-                            <input type="text" name="revenue">
-                        </div>
-                        <div class="form-group">
-                            <label>Revenue Year</label>
-                            <input type="text" name="revenue_year">
-                        </div>
-                        <div class="form-group">
-                            <label>Last Funding Amount</label>
-                            <input type="text" name="last_funding_amount">
-                        </div>
-                        <div class="form-group">
-                            <label>Last Funding Stage</label>
-                            <input type="text" name="last_funding_data">
-                        </div>
-                        <div class="form-group">
-                            <label>Last Funding Date</label>
-                            <input type="text" name="last_funding_date" placeholder="YYYY-MM-DD">
-                        </div>
-                        <div class="form-group">
-                            <label>Headquarters</label>
-                            <input type="text" name="headquarter">
-                        </div>
-                        <div class="form-group">
-                            <label>Main Geography Outreach</label>
-                            <input type="text" name="main_geography_outreach">
-                        </div>
-                        <div class="form-group">
-                            <label>Company Website URL</label>
-                            <input type="text" name="company_url">
-                        </div>
-                        <div class="form-group">
-                            <label>LinkedIn URL</label>
-                            <input type="text" name="linkedin">
-                        </div>
-                        <div class="form-group">
-                            <label>Employees Count</label>
-                            <input type="text" name="how_many_employees">
-                        </div>
-                        <div class="form-group">
-                            <label>Marketing Head Name</label>
-                            <input type="text" name="marketing_head">
-                        </div>
-                        <div class="form-group">
-                            <label>Marketing Head Email</label>
-                            <input type="email" name="marketing_mail_id">
-                        </div>
-                        <div class="form-group">
-                            <label>Sales Head Name</label>
-                            <input type="text" name="sales_head">
-                        </div>
-                        <div class="form-group">
-                            <label>Sales Head Email</label>
-                            <input type="email" name="sales_head_mail">
-                        </div>
-                        <div class="form-group">
-                            <label>Content Marketing Head</label>
-                            <input type="text" name="content_marketing_head">
-                        </div>
-                        <div class="form-group">
-                            <label>Content Marketing Head Email</label>
-                            <input type="email" name="content_marketing_head_mail_id">
-                        </div>
-                        <div class="form-group">
-                            <label>Company Phone</label>
-                            <input type="text" name="company_phone">
-                        </div>
-                        <div class="form-group">
-                            <label>Facebook URL</label>
-                            <input type="text" name="facebook">
-                        </div>
-                        <div class="form-group">
                             <label>Instagram URL</label>
-                            <input type="text" name="instagram">
+                            <input type="text" name="instagram_url">
                         </div>
                         <div class="form-group">
-                            <label>YouTube URL</label>
-                            <input type="text" name="youtube">
+                            <label>Followers</label>
+                            <input type="number" name="followers">
                         </div>
                         <div class="form-group">
-                            <label>Twitter URL</label>
-                            <input type="text" name="twitter">
+                            <label>Followers Formatted</label>
+                            <input type="text" name="followers_formatted">
                         </div>
                         <div class="form-group">
-                            <label>Main Influencer Platform</label>
-                            <input type="text" name="main_influencer_platform">
+                            <label>Following</label>
+                            <input type="number" name="following">
                         </div>
                         <div class="form-group">
-                            <label>Web Traffic Info</label>
-                            <input type="text" name="web_traffic">
+                            <label>Following Formatted</label>
+                            <input type="text" name="following_formatted">
+                        </div>
+                        <div class="form-group">
+                            <label>Posts</label>
+                            <input type="number" name="posts">
+                        </div>
+                        <div class="form-group">
+                            <label>Posts Formatted</label>
+                            <input type="text" name="posts_formatted">
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select name="status">
+                                <option value="New">New</option>
+                                <option value="Message Sent">Message Sent</option>
+                                <option value="Replied">Replied</option>
+                                <option value="In Discussion">In Discussion</option>
+                                <option value="Deal Closed">Deal Closed</option>
+                                <option value="Not Interested">Not Interested</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Status Timestamp</label>
+                            <input type="datetime-local" name="status_timestamp">
+                        </div>
+                        <div class="form-group">
+                            <label>First Seen</label>
+                            <input type="datetime-local" name="first_seen">
+                        </div>
+                        <div class="form-group">
+                            <label>Source Query</label>
+                            <input type="text" name="source_query">
+                        </div>
+                        <div class="form-group span-2">
+                            <label>Source URL</label>
+                            <input type="text" name="source_url">
+                        </div>
+                        <div class="form-group span-2">
+                            <label>Snippet</label>
+                            <textarea name="snippet" rows="2"></textarea>
+                        </div>
+                        <div class="form-group span-2">
+                            <label>Script</label>
+                            <textarea name="script" rows="2"></textarea>
+                        </div>
+                        <div class="form-group span-2">
+                            <label>Message Received from Brand</label>
+                            <textarea name="message_received" rows="2"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">

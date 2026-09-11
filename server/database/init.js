@@ -75,38 +75,33 @@ async function initializeSchemaAndData() {
         // Seed brands
         const brandsPath = path.join(__dirname, 'brands.json');
         if (fs.existsSync(brandsPath)) {
-            console.log('Reading and seeding brands...');
             const brands = JSON.parse(fs.readFileSync(brandsPath, 'utf8'));
-            
-            // Insert in batch or loop
-            const queryText = `
-                INSERT INTO brands (
-                    brand_name, founded_year, category, brand_focus, founder_names,
-                    revenue, revenue_year, last_funding_amount, last_funding_data, last_funding_date,
-                    headquarter, main_geography_outreach, linkedin, how_many_employees,
-                    marketing_head, marketing_mail_id, sales_head, sales_head_mail,
-                    content_marketing_head, content_marketing_head_mail_id, company_phone, company_url,
-                    facebook, instagram, youtube, twitter, main_influencer_platform, web_traffic
-                ) VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                    $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-                    $21, $22, $23, $24, $25, $26, $27, $28
-                )
-            `;
+            if (Array.isArray(brands) && brands.length > 0) {
+                console.log('Reading and seeding brands...');
+                const queryText = `
+                    INSERT INTO brands (
+                        username, instagram_url, display_name, followers, followers_formatted,
+                        following, following_formatted, posts, posts_formatted, snippet,
+                        source_query, source_url, first_seen, script, status,
+                        message_received, status_timestamp
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                `;
 
-            let count = 0;
-            for (const b of brands) {
-                await pool.query(queryText, [
-                    b.brand_name, b.founded_year, b.category, b.brand_focus, b.founder_names,
-                    b.revenue, b.revenue_year, b.last_funding_amount, b.last_funding_data, b.last_funding_date,
-                    b.headquarter, b.main_geography_outreach, b.linkedin, b.how_many_employees,
-                    b.marketing_head, b.marketing_mail_id, b.sales_head, b.sales_head_mail,
-                    b.content_marketing_head, b.content_marketing_head_mail_id, b.company_phone, b.company_url,
-                    b.facebook, b.instagram, b.youtube, b.twitter, b.main_influencer_platform, b.web_traffic
-                ]);
-                count++;
+                let count = 0;
+                for (const b of brands) {
+                    await pool.query(queryText, [
+                        b.username || null, b.instagram_url || null, b.display_name || null,
+                        b.followers || null, b.followers_formatted || null,
+                        b.following || null, b.following_formatted || null,
+                        b.posts || null, b.posts_formatted || null, b.snippet || null,
+                        b.source_query || null, b.source_url || null, b.first_seen || null,
+                        b.script || null, b.status || 'New', b.message_received || null,
+                        b.status_timestamp || null
+                    ]);
+                    count++;
+                }
+                console.log(`Successfully seeded ${count} brands.`);
             }
-            console.log(`Successfully seeded ${count} brands.`);
         }
 
         // Seed influencers

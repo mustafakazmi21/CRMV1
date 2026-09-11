@@ -44,7 +44,7 @@ async function getLeads(req, res) {
 
         if (location) {
             const locPattern = `%${location.trim()}%`;
-            whereClauses.push(`(b.headquarter ILIKE $${paramIdx} OR i.location ILIKE $${paramIdx})`);
+            whereClauses.push(`(b.snippet ILIKE $${paramIdx} OR i.location ILIKE $${paramIdx})`);
             params.push(locPattern);
             paramIdx++;
         }
@@ -62,7 +62,7 @@ async function getLeads(req, res) {
 
         if (search && search.trim() !== '') {
             const searchPattern = `%${search.trim()}%`;
-            whereClauses.push(`(b.brand_name ILIKE $${paramIdx} OR i.influencer_name ILIKE $${paramIdx})`);
+            whereClauses.push(`(b.display_name ILIKE $${paramIdx} OR b.username ILIKE $${paramIdx} OR i.influencer_name ILIKE $${paramIdx})`);
             params.push(searchPattern);
             paramIdx++;
         }
@@ -89,7 +89,9 @@ async function getLeads(req, res) {
 
         const selectQuery = `
             SELECT l.*, 
-                   b.brand_name, b.category as brand_category, b.company_url as brand_url,
+                   COALESCE(b.display_name, b.username, '') as brand_name, 
+                   b.snippet as brand_category, 
+                   b.instagram_url as brand_url,
                    i.influencer_name, i.followers as influencer_followers, i.instagram_url as influencer_url,
                    u.username as assigned_username
             FROM leads l
@@ -127,7 +129,9 @@ async function getLeadById(req, res) {
     try {
         const leadQuery = `
             SELECT l.*, 
-                   b.brand_name, b.category as brand_category, b.company_url as brand_url,
+                   COALESCE(b.display_name, b.username, '') as brand_name, 
+                   b.snippet as brand_category, 
+                   b.instagram_url as brand_url,
                    i.influencer_name, i.followers as influencer_followers, i.instagram_url as influencer_url,
                    u.username as assigned_username
             FROM leads l
@@ -181,7 +185,7 @@ async function createLead(req, res) {
         // Check if lead already exists
         let checkRes;
         if (brand_id) {
-            checkRes = await pool.query('SELECT l.*, b.brand_name as record_name FROM leads l JOIN brands b ON l.brand_id = b.id WHERE l.brand_id = $1 AND l.is_archived = false', [brand_id]);
+            checkRes = await pool.query("SELECT l.*, COALESCE(b.display_name, b.username, '') as record_name FROM leads l JOIN brands b ON l.brand_id = b.id WHERE l.brand_id = $1 AND l.is_archived = false", [brand_id]);
         } else {
             checkRes = await pool.query('SELECT l.*, i.influencer_name as record_name FROM leads l JOIN influencers i ON l.influencer_id = i.id WHERE l.influencer_id = $1 AND l.is_archived = false', [influencer_id]);
         }
@@ -193,7 +197,7 @@ async function createLead(req, res) {
         // Get name for audit logging
         let recordName = '';
         if (brand_id) {
-            const nameRes = await pool.query('SELECT brand_name FROM brands WHERE id = $1', [brand_id]);
+            const nameRes = await pool.query("SELECT COALESCE(display_name, username, '') as brand_name FROM brands WHERE id = $1", [brand_id]);
             if (nameRes.rowCount > 0) recordName = nameRes.rows[0].brand_name;
         } else {
             const nameRes = await pool.query('SELECT influencer_name FROM influencers WHERE id = $1', [influencer_id]);
@@ -236,7 +240,7 @@ async function assignLead(req, res) {
 
     try {
         const leadRes = await pool.query(`
-            SELECT l.*, b.brand_name, i.influencer_name 
+            SELECT l.*, COALESCE(b.display_name, b.username, '') as brand_name, i.influencer_name 
             FROM leads l 
             LEFT JOIN brands b ON l.brand_id = b.id 
             LEFT JOIN influencers i ON l.influencer_id = i.id 
@@ -299,7 +303,7 @@ async function updateLeadStatus(req, res) {
 
     try {
         const leadRes = await pool.query(`
-            SELECT l.*, b.brand_name, i.influencer_name 
+            SELECT l.*, COALESCE(b.display_name, b.username, '') as brand_name, i.influencer_name 
             FROM leads l 
             LEFT JOIN brands b ON l.brand_id = b.id 
             LEFT JOIN influencers i ON l.influencer_id = i.id 
@@ -404,7 +408,7 @@ async function bulkUpdateLeads(req, res) {
         // Get leads info for logging
         const idsList = leadIds.join(',');
         const leadsRes = await pool.query(`
-            SELECT l.id, l.${fieldToUpdate} as old_val, b.brand_name, i.influencer_name, l.brand_id, l.influencer_id
+            SELECT l.id, l.${fieldToUpdate} as old_val, COALESCE(b.display_name, b.username, '') as brand_name, i.influencer_name, l.brand_id, l.influencer_id
             FROM leads l
             LEFT JOIN brands b ON l.brand_id = b.id
             LEFT JOIN influencers i ON l.influencer_id = i.id
@@ -475,7 +479,7 @@ async function addLeadActivity(req, res) {
 
     try {
         const leadRes = await pool.query(`
-            SELECT l.*, b.brand_name, i.influencer_name 
+            SELECT l.*, COALESCE(b.display_name, b.username, '') as brand_name, i.influencer_name 
             FROM leads l 
             LEFT JOIN brands b ON l.brand_id = b.id 
             LEFT JOIN influencers i ON l.influencer_id = i.id 
@@ -542,7 +546,7 @@ async function getEmployeeActivities(req, res) {
 
         const activitiesQuery = `
             SELECT la.*,
-                   b.brand_name, i.influencer_name
+                   COALESCE(b.display_name, b.username, '') as brand_name, i.influencer_name
             FROM lead_activities la
             JOIN leads l ON la.lead_id = l.id
             LEFT JOIN brands b ON l.brand_id = b.id
